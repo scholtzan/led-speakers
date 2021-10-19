@@ -4,7 +4,20 @@ version = "0.1.0"
 authors = ["Anna Scholtz <anna@scholtzan.net>"]
 edition = "2018"
 
+[workspace]
+
+[dependencies.web]
+
 [dependencies]
+dotenv = "0.15.0"
+dotenv_codegen = "0.15.0"
+serde_json = "1.0"
+actix-web = { version = "3.2.0", features=["openssl"] }
+actix-rt = "1.1.1"
+actix-cors = "0.5.1"
+actix-service = "1.0.6"
+actix-files = "0.4.1"
+anyhow = "1.0.28"
 
 [dependencies.pulse]
 version = "2.0"
