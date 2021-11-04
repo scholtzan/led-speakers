@@ -1,0 +1,15 @@
+{
+    "vizualizations": [
+        {
+            "name": "Test viz"
+        }
+    ],
+    "themes": [
+        {
+            "name": "Test Theme",
+            "colors": [
+
+            ]    
+        }
+    ]
+}
