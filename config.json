@@ -1,14 +1,15 @@
 {
-    "vizualizations": [
-        {
-            "name": "Test viz"
+    "vizualizations": {
+        "rotating_viz": {
+            "pretty_name": "Rotating Viz"
         }
-    ],
+    },
     "themes": [
         {
             "name": "Test Theme",
             "colors": [
-
+                [255, 255, 0, 1],
+                [255, 0, 0, 1]
             ]    
         }
     ]

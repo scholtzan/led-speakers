@@ -3,11 +3,18 @@ use actix_web::{get, post, http, web, App, Error, HttpServer, HttpResponse, Resp
 use anyhow::Result;
 use dotenv::dotenv;
 
+mod settings;
+mod theme;
+mod viz;
+
+use crate::settings::Settings;
+
 #[macro_use]
 extern crate dotenv_codegen;
 
 
 const ASSETS_DIR: &str = "../web/dist/spa"; // todo
+const CONFIG: &str = "config.json";
 
 async fn serve_index_file() -> Result<actix_files::NamedFile, Error> {
     Ok(
@@ -54,6 +61,11 @@ async fn set_viz(
 #[actix_rt::main]
 async fn main() -> Result<()> {
     dotenv().ok();
+
+    let mut settings = config::Config::default();
+    settings.merge(config::File::with_name(CONFIG)).unwrap();
+    let _settings: Settings = settings.try_into().unwrap();
+
     HttpServer::new(move || {
         App::new()
             .wrap(
