@@ -1,5 +1,5 @@
 use pulse::callbacks::ListResult;
-use pulse::context::introspect::SourceInfo;
+use pulse::context::introspect::SinkInfo;
 use pulse::context::Context;
 use pulse::error::PAErr;
 #[allow(unused_imports)]
@@ -12,6 +12,7 @@ use pulse::stream::{PeekResult, Stream};
 use std::borrow::Cow;
 use std::rc::Rc;
 use std::cell::RefCell;
+use std::ops::Deref;
 
 
 struct AudioContext {
@@ -21,62 +22,167 @@ struct AudioContext {
 
 
 #[derive(Clone, Debug)]
-pub struct AudioSource {
+pub struct AudioSink {
     name: String,
     index: u32,
-    pub rate: u32,
-    channels: u8,
-    sample_format: Format,
+    source_name: String,
 }
 
-impl AudioSource {
-    fn from_pa_source_info(source_info: &SourceInfo) -> AudioSource {
-        let name = match &source_info.name {
+impl AudioSink {
+    fn from_pa_sink_info(sink_info: &SinkInfo) -> AudioSink {
+        let name = match &sink_info.name {
             None => String::from("Unnamed audio source"),
             Some(Cow::Borrowed(inner_name)) => String::from(*inner_name),
             Some(Cow::Owned(inner_name)) => inner_name.clone(),
         };
 
-        AudioSource {
+        let source_name = match &sink_info.monitor_source_name {
+            None => String::from("Unnamed audio source"),
+            Some(Cow::Borrowed(inner_name)) => String::from(*inner_name),
+            Some(Cow::Owned(inner_name)) => inner_name.clone(),
+        };
+
+        AudioSink {
             name: name,
-            index: source_info.index,
-            rate: source_info.sample_spec.rate,
-            sample_format: source_info.sample_spec.format,
-            channels: source_info.sample_spec.channels,
+            index: sink_info.index,
+            source_name: source_name
         }
-    }
-
-    pub fn byte_rate(&self) -> u64 {
-        self.channels as u64 * self.rate as u64 * (self.sample_format.size()) as u64
-    }
-
-    fn sample_bytes(&self) -> u32 {
-        self.channels as u32 * self.sample_format.size() as u32
     }
 }
 
-impl Default for AudioSource {
+impl Default for AudioSink {
     fn default() -> Self {
-        AudioSource {
+        AudioSink {
             name: String::from("Audio Source"),
             index: 0,
-            rate: 44100,
-            sample_format: Format::S16le,
-            channels: 2,
+            source_name: String::from("Audio Source"),
         }
     }
 }
 
 
-// pub struct AudioStream {
-//     source: AudioSource
-// }
+pub struct AudioStream {
+    sink: Rc<RefCell<AudioSink>>,
+    name: String,
+    context: Rc<RefCell<Context>>,
+    mainloop: Rc<RefCell<Mainloop>>,
+}
 
 
-// impl AudioStream {
-//     pub fn new() -> AudioStream {
+impl AudioStream {
+    pub fn new(name: String) -> AudioStream {
+        let mut proplist = Proplist::new().unwrap();
+        proplist.set(pulse::proplist::properties::APPLICATION_NAME, &name.as_bytes()).unwrap();
 
-//     }
-// }
+        let mainloop = Rc::new(RefCell::new(Mainloop::new().expect("Failed to create mainloop")));
+        let context = Rc::new(RefCell::new(
+            Context::new_with_proplist(mainloop.borrow().deref(), &name, &proplist)
+                .expect("Failed to create context"),
+        ));
+
+        // todo: needed?
+        {
+            let ml_ref = Rc::clone(&mainloop);
+            let context_ref = Rc::clone(&context);
+            context.borrow_mut().set_state_callback(Some(Box::new(move || {
+                let state = unsafe { (*context_ref.as_ptr()).get_state() };
+                match state {
+                    pulse::context::State::Ready | pulse::context::State::Failed | pulse::context::State::Terminated => unsafe {
+                        eprintln!("Failed to connect to PulseAudio");
+                        (*ml_ref.as_ptr()).signal(false);
+                    },
+                    _ => {}
+                }
+            })));
+        }
+
+        AudioStream {
+            sink: Rc::new(RefCell::new(AudioSink::default())),
+            name,
+            context,
+            mainloop
+        }
+    }
+
+    pub fn start(&self) {
+        self.context
+            .borrow_mut()
+            .connect(None, pulse::context::flags::NOFLAGS, None)
+            .expect("Failed to connect context");
+        self.mainloop.borrow_mut().lock();
+        self.mainloop.borrow_mut().start().expect("Failed to start mainloop");
+        
+        if !self.is_ready() {
+            return;
+        }
+
+        let op = {
+            let ml_ref = Rc::clone(&self.mainloop);
+            let sink_ref = Rc::clone(&self.sink);
+            let name = self.name.clone();
+            self.context.borrow_mut().introspect().get_sink_info_list(
+                move |sink_list: ListResult<&SinkInfo>| {
+                    match sink_list {
+                        ListResult::Item(sink_info) => {
+                            if let Some(n) = &sink_info.name {
+                                if name == n.clone().into_owned()  {
+                                    let description: String = if let Some(d) = &sink_info.description {
+                                        d.deref().to_owned()
+                                    } else {
+                                        "".to_string()
+                                    };
+
+                                    eprintln!("index: {}", sink_info.index);
+                                    eprintln!("name: {}", n);
+                                    eprintln!("description: {}", description);
+                                    let sink = AudioSink::from_pa_sink_info(sink_info);
+                                    *sink_ref.borrow_mut() = sink;
+                                }
+                            } else {
+                                eprintln!("Nameless device at index: {}", sink_info.index);
+                            }
+                        }
+                        ListResult::End => {
+                            unsafe {
+                                (*ml_ref.as_ptr()).signal(false);
+                            }
+                        }
+                        ListResult::Error => {
+                            eprintln!("Listing devices failed, opaquely");
+                            unsafe {
+                                (*ml_ref.as_ptr()).signal(false);
+                            }
+                        }
+                    }
+                },
+            )
+        };
+        while op.get_state() == pulse::operation::State::Running {
+            self.mainloop.borrow_mut().wait();
+        }
+
+        self.mainloop.borrow_mut().unlock();
+    }
+
+    fn is_ready(&self) -> bool {
+        loop {
+            let mainloop = &self.mainloop;
+            match self.context.borrow().get_state() {
+                pulse::context::State::Ready => {
+                    return true;
+                },
+                pulse::context::State::Failed | pulse::context::State::Terminated => {
+                    mainloop.borrow_mut().unlock();
+                    mainloop.borrow_mut().stop();
+                    eprintln!("Cannot connect to PulseAudio");
+                    return false;   
+                }
+                _ => {
+                    mainloop.borrow_mut().wait();
+                }
+            }
+        }
+    }
+}
 
 

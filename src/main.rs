@@ -3,7 +3,7 @@ use actix_web::{get, post, http, web, App, Error, HttpServer, HttpResponse, Resp
 use anyhow::Result;
 use dotenv::dotenv;
 
-// mod audio;
+mod audio;
 mod buffer;
 mod settings;
 mod theme;
