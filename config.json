@@ -12,5 +12,6 @@
                 [255, 0, 0, 1]
             ]    
         }
-    ]
+    ],
+    "sink": "alsa_output.usb-Generic_USB2.0_Device_20170726905959-00.analog-stereo"
 }

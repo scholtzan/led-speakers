@@ -10,6 +10,7 @@ mod theme;
 mod viz;
 
 use crate::settings::Settings;
+use crate::audio::AudioStream;
 
 #[macro_use]
 extern crate dotenv_codegen;
@@ -64,9 +65,14 @@ async fn set_viz(
 async fn main() -> Result<()> {
     dotenv().ok();
 
-    let mut settings = config::Config::default();
-    settings.merge(config::File::with_name(CONFIG)).unwrap();
-    let _settings: Settings = settings.try_into().unwrap();
+    eprintln!("Start LED speakers");
+
+    let mut conf = config::Config::default();
+    conf.merge(config::File::with_name(CONFIG)).unwrap();
+    let settings: Settings = conf.try_into().unwrap();
+
+    let audio = AudioStream::new("led speakers".to_string(), settings.sink);
+    audio.start();
 
     HttpServer::new(move || {
         App::new()

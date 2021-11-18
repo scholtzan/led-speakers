@@ -48,6 +48,14 @@ impl AudioSink {
             source_name: source_name
         }
     }
+
+    fn new(name: String, index: u32, source_name: String) -> AudioSink {
+        AudioSink {
+            name,
+            index,
+            source_name
+        }
+    }
 }
 
 impl Default for AudioSink {
@@ -70,7 +78,7 @@ pub struct AudioStream {
 
 
 impl AudioStream {
-    pub fn new(name: String) -> AudioStream {
+    pub fn new(name: String, source_name: String) -> AudioStream {
         let mut proplist = Proplist::new().unwrap();
         proplist.set(pulse::proplist::properties::APPLICATION_NAME, &name.as_bytes()).unwrap();
 
@@ -80,14 +88,16 @@ impl AudioStream {
                 .expect("Failed to create context"),
         ));
 
-        // todo: needed?
         {
             let ml_ref = Rc::clone(&mainloop);
             let context_ref = Rc::clone(&context);
             context.borrow_mut().set_state_callback(Some(Box::new(move || {
                 let state = unsafe { (*context_ref.as_ptr()).get_state() };
                 match state {
-                    pulse::context::State::Ready | pulse::context::State::Failed | pulse::context::State::Terminated => unsafe {
+                    pulse::context::State::Ready => unsafe {
+                        (*ml_ref.as_ptr()).signal(false);
+                    },
+                    pulse::context::State::Failed | pulse::context::State::Terminated => unsafe {
                         eprintln!("Failed to connect to PulseAudio");
                         (*ml_ref.as_ptr()).signal(false);
                     },
@@ -96,8 +106,10 @@ impl AudioStream {
             })));
         }
 
+        let sink = AudioSink::new(source_name.clone(), 0, source_name);
+
         AudioStream {
-            sink: Rc::new(RefCell::new(AudioSink::default())),
+            sink: Rc::new(RefCell::new(sink)),
             name,
             context,
             mainloop
@@ -119,7 +131,7 @@ impl AudioStream {
         let op = {
             let ml_ref = Rc::clone(&self.mainloop);
             let sink_ref = Rc::clone(&self.sink);
-            let name = self.name.clone();
+            let name = sink_ref.borrow().source_name.clone();
             self.context.borrow_mut().introspect().get_sink_info_list(
                 move |sink_list: ListResult<&SinkInfo>| {
                     match sink_list {
@@ -148,7 +160,7 @@ impl AudioStream {
                             }
                         }
                         ListResult::Error => {
-                            eprintln!("Listing devices failed, opaquely");
+                            eprintln!("Listing devices failed");
                             unsafe {
                                 (*ml_ref.as_ptr()).signal(false);
                             }
@@ -157,6 +169,7 @@ impl AudioStream {
                 },
             )
         };
+
         while op.get_state() == pulse::operation::State::Running {
             self.mainloop.borrow_mut().wait();
         }

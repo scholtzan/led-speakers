@@ -12,6 +12,7 @@ pub struct Settings {
     #[serde(deserialize_with="parse_visualizations")]
     pub vizualizations: Vec<Box<dyn Viz>>,
     pub themes: Vec<Theme>,
+    pub sink: String
     // other
 }
 
