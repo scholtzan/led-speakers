@@ -13,6 +13,13 @@ use std::borrow::Cow;
 use std::rc::Rc;
 use std::cell::RefCell;
 use std::ops::Deref;
+use std::sync::{Arc, Mutex, Weak};
+
+
+enum ReadyState {
+    Stream(pulse::stream::State),
+    Context(pulse::context::State),
+}
 
 
 struct AudioContext {
@@ -26,6 +33,7 @@ pub struct AudioSink {
     name: String,
     index: u32,
     source_name: String,
+    spec: Option<Spec>
 }
 
 impl AudioSink {
@@ -45,15 +53,17 @@ impl AudioSink {
         AudioSink {
             name: name,
             index: sink_info.index,
-            source_name: source_name
+            source_name: source_name,
+            spec: Some(sink_info.sample_spec.clone()),
         }
     }
 
-    fn new(name: String, index: u32, source_name: String) -> AudioSink {
+    fn new(name: String, index: u32, source_name: String, spec: Option<Spec>) -> AudioSink {
         AudioSink {
             name,
             index,
-            source_name
+            source_name,
+            spec,
         }
     }
 }
@@ -64,6 +74,7 @@ impl Default for AudioSink {
             name: String::from("Audio Source"),
             index: 0,
             source_name: String::from("Audio Source"),
+            spec: None,
         }
     }
 }
@@ -106,7 +117,7 @@ impl AudioStream {
             })));
         }
 
-        let sink = AudioSink::new(source_name.clone(), 0, source_name);
+        let sink = AudioSink::new(source_name.clone(), 0, source_name, None);
 
         AudioStream {
             sink: Rc::new(RefCell::new(sink)),
@@ -124,7 +135,8 @@ impl AudioStream {
         self.mainloop.borrow_mut().lock();
         self.mainloop.borrow_mut().start().expect("Failed to start mainloop");
         
-        if !self.is_ready() {
+        let state_closure = || ReadyState::Context(self.context.borrow().get_state());
+        if !self.is_ready(&state_closure) {
             return;
         }
 
@@ -170,6 +182,8 @@ impl AudioStream {
             )
         };
 
+
+
         while op.get_state() == pulse::operation::State::Running {
             self.mainloop.borrow_mut().wait();
         }
@@ -177,22 +191,87 @@ impl AudioStream {
         self.mainloop.borrow_mut().unlock();
     }
 
-    fn is_ready(&self) -> bool {
+    fn connect_stream(&self) -> Result<Arc<Mutex<Stream>>, String> {
+        let sink_ref = Rc::clone(&self.sink);
+        let spec = sink_ref.borrow().spec.clone().unwrap();
+        let stream = Arc::new(Mutex::new(
+            Stream::new(&mut self.context.borrow_mut(), "led-speaker", &spec, None)
+                .expect("Failed to create new stream"),
+        ));
+
+        self.mainloop.borrow_mut().lock();
+        let mainloop_ref = Rc::clone(&self.mainloop);
+
+        {
+            let weak_stream = Arc::downgrade(&stream);
+            stream.lock().unwrap().set_state_callback(Some(Box::new(move || {
+                match weak_stream.upgrade() {
+                    Some(stream) => {
+                        if let Ok(res) = stream.try_lock() {
+                            let state = res.get_state();
+                            match state {
+                                pulse::stream::State::Ready
+                                | pulse::stream::State::Failed
+                                | pulse::stream::State::Terminated => unsafe {
+                                    (*mainloop_ref.as_ptr()).signal(false);
+                                },
+                                _ => {}
+                            }
+                        } else {
+                            eprintln!("PulseAudio state callback for locked stream.");
+                        }
+                    },
+                    None => {
+                        eprintln!("Stream has been dropped");
+                    }
+                }
+            })));
+        }
+
+        stream.lock().unwrap().connect_record(
+            Some(sink_ref.borrow().name.clone().as_str()),
+            None,
+            flags::START_UNMUTED & flags::START_CORKED,
+        ).expect("Could not connect stream");
+        let state_closure = || ReadyState::Stream(stream.clone().try_lock().unwrap().get_state());
+        if !self.is_ready(&state_closure) {
+            eprintln!("Error connecting stream.");
+        }
+
+        self.mainloop.borrow_mut().unlock();
+        Ok(stream)
+    }
+
+    fn is_ready(&self, state_closure: &Fn() -> ReadyState) -> bool {
         loop {
             let mainloop = &self.mainloop;
-            match self.context.borrow().get_state() {
-                pulse::context::State::Ready => {
-                    return true;
+            match state_closure() {
+                ReadyState::Stream(state) => match state {
+                    pulse::stream::State::Ready => {
+                        return true;
+                    }
+                    pulse::stream::State::Failed | pulse::stream::State::Terminated => {
+                        mainloop.borrow_mut().unlock();
+                        mainloop.borrow_mut().stop();
+                        return false;
+                    }
+                    _ => {
+                        mainloop.borrow_mut().wait();
+                    }
                 },
-                pulse::context::State::Failed | pulse::context::State::Terminated => {
-                    mainloop.borrow_mut().unlock();
-                    mainloop.borrow_mut().stop();
-                    eprintln!("Cannot connect to PulseAudio");
-                    return false;   
-                }
-                _ => {
-                    mainloop.borrow_mut().wait();
-                }
+                ReadyState::Context(state) => match state {
+                    pulse::context::State::Ready => {
+                        return true;
+                    }
+                    pulse::context::State::Failed | pulse::context::State::Terminated => {
+                        mainloop.borrow_mut().unlock();
+                        mainloop.borrow_mut().stop();
+                        return false;
+                    }
+                    _ => {
+                        mainloop.borrow_mut().wait();
+                    }
+                },
             }
         }
     }
