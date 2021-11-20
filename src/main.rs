@@ -72,7 +72,7 @@ async fn main() -> Result<()> {
     let settings: Settings = conf.try_into().unwrap();
 
     let audio = AudioStream::new("led speakers".to_string(), settings.sink);
-    audio.start();
+    let buffer = audio.start();
 
     HttpServer::new(move || {
         App::new()
