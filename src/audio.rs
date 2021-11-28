@@ -87,17 +87,30 @@ impl Default for AudioSink {
 
 
 pub struct AudioStream {
-    sink: Rc<RefCell<AudioSink>>,
     name: String,
-    context: Rc<RefCell<Context>>,
-    mainloop: Rc<RefCell<Mainloop>>,
+    source_name: String,
     handle: Option<JoinHandle<()>>,
     killed: Arc<AtomicBool>,
+    buffer: Option<Arc<Buffer>>
 }
 
 
 impl AudioStream {
     pub fn new(name: String, source_name: String) -> AudioStream {
+        let mut audio_stream = AudioStream {
+            name,
+            source_name,
+            killed: Arc::new(AtomicBool::from(false)),
+            handle: None,
+            buffer: None
+        };
+
+        audio_stream.buffer = Some(audio_stream.start().expect("Could not create audio stream"));
+
+        audio_stream
+    }
+
+    fn init(name: String) -> (Rc<RefCell<Mainloop>>, Rc<RefCell<Context>>) {
         let mut proplist = Proplist::new().unwrap();
         proplist.set(pulse::proplist::properties::APPLICATION_NAME, &name.as_bytes()).unwrap();
 
@@ -125,36 +138,105 @@ impl AudioStream {
             })));
         }
 
-        let sink = AudioSink::new(source_name.clone(), 0, source_name, None);
-
-        AudioStream {
-            sink: Rc::new(RefCell::new(sink)),
-            name,
-            context,
-            mainloop,
-            killed: Arc::new(AtomicBool::from(false)),
-            handle: None
-        }
+        (mainloop, context)
     }
 
-    pub fn start(&self) {
-        self.context
+    fn start(&mut self) -> Result<Arc<Buffer>, String> {
+        let weak_killed: Weak<AtomicBool> = Arc::downgrade(&self.killed);
+        let buffer = Arc::new(Buffer::new(30000)); // todo: configurable and make member
+        let buf = buffer.clone();
+        let name = self.name.clone();
+        let source_name = self.source_name.clone();
+
+        self.handle = Some(thread::spawn(move || {
+            let (mainloop, context) = Self::init(name);
+            let sink = Self::connect_sink(&mainloop, &context, source_name);
+            let mut stream = Self::connect_stream(&mainloop, &context, sink).expect("Error creating stream");
+            let mut pa_stream = stream.lock().unwrap();
+            mainloop.borrow_mut().lock();
+            pa_stream.uncork(None);
+            mainloop.borrow_mut().unlock();
+
+            loop {
+                let killed = weak_killed.upgrade();
+                if killed.is_some() && !killed.unwrap().load(Ordering::Relaxed) {
+                    mainloop.borrow_mut().lock();
+                    let available = pa_stream.readable_size();
+
+                    if let Some(count) = available {
+                        if count < 128 { // todo: make configurable
+                            thread::sleep(time::Duration::from_micros(200));
+                            continue;
+                        }
+                    }
+
+                    let mut written = 0;
+                    let peek = pa_stream.peek().expect("Could not peek PulseAudio stream");
+                    match peek {
+                        PeekResult::Empty => {
+                            mainloop.borrow_mut().unlock();
+                            thread::sleep(time::Duration::from_micros(200));
+                            continue;
+                        },
+                        PeekResult::Hole(size) => {
+                            pa_stream.discard().unwrap();
+                            mainloop.borrow_mut().unlock();
+                        },
+                        PeekResult::Data(data) => {
+                            let read = data.len();
+                            let mut s: i32 = 100; // todo: make configurable
+                            while s > 0 {
+                                let buffer_avail = buf.reserve(data.len());
+                                if buffer_avail > data.len() {
+                                    buf.write(data);
+                                    written = data.len();
+                                }
+                                s -= 1;
+                                if written >= read {
+                                    break;
+                                }
+                            }
+
+                            pa_stream.discard().expect("Could not discard PulseAudio stream");
+                            mainloop.borrow_mut().unlock();
+                        }
+                    }
+                } else {
+                    let disconnect = Self::disconnect_stream(&mainloop, &stream);
+                    match disconnect {
+                        Ok(_) => {},
+                        Err(error) => eprintln!("Could not disconnect stream"),
+                    }
+                    mainloop.borrow_mut().stop();
+                    break;
+                }
+            }
+        }));
+
+        Ok(buffer.clone())
+    }
+
+    fn connect_sink(mainloop: &Rc<RefCell<Mainloop>>, context: &Rc<RefCell<Context>>, source_name: String) -> Rc<RefCell<Option<AudioSink>>> {
+        context
             .borrow_mut()
             .connect(None, pulse::context::flags::NOFLAGS, None)
             .expect("Failed to connect context");
-        self.mainloop.borrow_mut().lock();
-        self.mainloop.borrow_mut().start().expect("Failed to start mainloop");
+        mainloop.borrow_mut().lock();
+        mainloop.borrow_mut().start().expect("Failed to start mainloop");
+
+        let mut sink = Rc::new(RefCell::new(None));
         
-        let state_closure = || ReadyState::Context(self.context.borrow().get_state());
-        if !self.is_ready(&state_closure) {
-            return;
+        let state_closure = || ReadyState::Context(context.borrow().get_state());
+        if !Self::is_ready(&mainloop, &state_closure) {
+            eprintln!("Not ready");
+            return sink;
         }
 
         let op = {
-            let ml_ref = Rc::clone(&self.mainloop);
-            let sink_ref = Rc::clone(&self.sink);
-            let name = sink_ref.borrow().source_name.clone();
-            self.context.borrow_mut().introspect().get_sink_info_list(
+            let mut sink_ref = Rc::clone(&sink);
+            let ml_ref = Rc::clone(&mainloop);
+            let name = source_name.clone();
+            context.borrow_mut().introspect().get_sink_info_list(
                 move |sink_list: ListResult<&SinkInfo>| {
                     match sink_list {
                         ListResult::Item(sink_info) => {
@@ -169,8 +251,7 @@ impl AudioStream {
                                     eprintln!("index: {}", sink_info.index);
                                     eprintln!("name: {}", n);
                                     eprintln!("description: {}", description);
-                                    let sink = AudioSink::from_pa_sink_info(sink_info);
-                                    *sink_ref.borrow_mut() = sink;
+                                    sink_ref = Rc::new(RefCell::new(Some(AudioSink::from_pa_sink_info(sink_info))));
                                 }
                             } else {
                                 eprintln!("Nameless device at index: {}", sink_info.index);
@@ -193,92 +274,23 @@ impl AudioStream {
         };
 
         while op.get_state() == pulse::operation::State::Running {
-            self.mainloop.borrow_mut().wait();
+            mainloop.borrow_mut().wait();
         }
 
-        self.mainloop.borrow_mut().unlock();
-
-        let weak_killed: Weak<AtomicBool> = Arc::downgrade(&self.killed);
-        let buffer = Buffer::new(30000); // todo: configurable and make member
-
-        self.handle = Some(thread::spawn(move || {
-            let mut stream = self.connect_stream().expect("Error creating stream");
-            let mut pa_stream = stream.lock().unwrap();
-            self.mainloop.borrow_mut().lock();
-            pa_stream.uncork(None);
-            self.mainloop.borrow_mut().unlock();
-
-            loop {
-                let killed = weak_killed.upgrade();
-                if killed.is_some() && !killed.unwrap().load(Ordering::Relaxed) {
-                    self.mainloop.borrow_mut().lock();
-                    let available = pa_stream.readable_size();
-                    self.mainloop.borrow_mut().lock();
-
-                    if let Some(count) = available {
-                        if count < 128 { // todo: make configurable
-                            thread::sleep(time::Duration::from_micros(200));
-                            continue;
-                        }
-                    }
-
-                    let mut written = 0;
-                    self.mainloop.borrow_mut().lock();
-                    let peek = pa_stream.peek().expect("Could not peek PulseAudio stream");
-                    match peek {
-                        PeekResult::Empty => {
-                            self.mainloop.borrow_mut().unlock();
-                            thread::sleep(time::Duration::from_micros(200));
-                            continue;
-                        },
-                        PeekResult::Hole(size) => {
-                            pa_stream.discard().unwrap();
-                            self.mainloop.borrow_mut().unlock();
-                        },
-                        PeekResult::Data(data) => {
-                            let read = data.len();
-                            let mut s: i32 = 100; // todo: make configurable
-                            while s > 0 {
-                                let buffer_avail = buffer.reserve(data.len());
-                                if buffer_avail > data.len() {
-                                    buffer.write(data);
-                                    written = data.len();
-                                }
-                                s -= 1;
-                                if written >= read {
-                                    break;
-                                }
-                            }
-
-                            pa_stream.discard().expect("Could not discard PulseAudio stream");
-                            self.mainloop.borrow_mut().unlock();
-                        }
-                    }
-                } else {
-                    let disconnect = self.disconnect_stream(&stream);
-                    match disconnect {
-                        Ok(_) => {},
-                        Err(error) => eprintln!("Could not disconnect stream"),
-                    }
-                    self.mainloop.borrow_mut().stop();
-                    break;
-                }
-            }
-        }));
-
-        Ok(buffer);
+        mainloop.borrow_mut().unlock();
+        sink
     }
 
-    fn connect_stream(&self) -> Result<Arc<Mutex<Stream>>, String> {
-        let sink_ref = Rc::clone(&self.sink);
-        let spec = sink_ref.borrow().spec.clone().unwrap();
+    fn connect_stream(mainloop: &Rc<RefCell<Mainloop>>, context: &Rc<RefCell<Context>>, sink: Rc<RefCell<Option<AudioSink>>>) -> Result<Arc<Mutex<Stream>>, String> {
+        let sink_ref = Rc::clone(&sink);
+        let spec = sink_ref.borrow().clone().unwrap().spec.unwrap();
         let stream = Arc::new(Mutex::new(
-            Stream::new(&mut self.context.borrow_mut(), "led-speaker", &spec, None)
+            Stream::new(&mut context.borrow_mut(), "led-speaker", &spec, None)
                 .expect("Failed to create new stream"),
         ));
 
-        self.mainloop.borrow_mut().lock();
-        let mainloop_ref = Rc::clone(&self.mainloop);
+        mainloop.borrow_mut().lock();
+        let mainloop_ref = Rc::clone(&mainloop);
 
         {
             let weak_stream = Arc::downgrade(&stream);
@@ -307,33 +319,33 @@ impl AudioStream {
         }
 
         stream.lock().unwrap().connect_record(
-            Some(sink_ref.borrow().name.clone().as_str()),
+            Some(sink_ref.borrow().clone().unwrap().name.as_str()),
             None,
             flags::START_UNMUTED & flags::START_CORKED,
         ).expect("Could not connect stream");
         let state_closure = || ReadyState::Stream(stream.clone().try_lock().unwrap().get_state());
-        if !self.is_ready(&state_closure) {
+        if !Self::is_ready(&mainloop, &state_closure) {
             eprintln!("Error connecting stream.");
         }
 
-        self.mainloop.borrow_mut().unlock();
+        mainloop.borrow_mut().unlock();
         Ok(stream)
     }
 
-    fn disconnect_stream(&self, stream: &Arc<Mutex<Stream>>) -> Result<bool, PAErr> {
-        self.mainloop.borrow_mut().lock();
+    fn disconnect_stream(mainloop: &Rc<RefCell<Mainloop>>, stream: &Arc<Mutex<Stream>>) -> Result<bool, PAErr> {
+        mainloop.borrow_mut().lock();
         let mut s = stream.lock().unwrap();
         s.cork(None);
         s.flush(None);
         s.set_state_callback(None);
         s.disconnect()?;
-        self.mainloop.borrow_mut().unlock();
+        mainloop.borrow_mut().unlock();
         Ok(true)
     }
 
-    fn is_ready(&self, state_closure: &Fn() -> ReadyState) -> bool {
+    fn is_ready(mainloop: &Rc<RefCell<Mainloop>>, state_closure: &Fn() -> ReadyState) -> bool {
         loop {
-            let mainloop = &self.mainloop;
+            let mainloop = &mainloop;
             match state_closure() {
                 ReadyState::Stream(state) => match state {
                     pulse::stream::State::Ready => {
@@ -365,5 +377,3 @@ impl AudioStream {
         }
     }
 }
-
-
