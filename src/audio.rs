@@ -162,6 +162,7 @@ impl AudioStream {
                 if killed.is_some() && !killed.unwrap().load(Ordering::Relaxed) {
                     mainloop.borrow_mut().lock();
                     let available = pa_stream.readable_size();
+                    mainloop.borrow_mut().unlock();
 
                     if let Some(count) = available {
                         if count < 128 { // todo: make configurable
@@ -171,6 +172,7 @@ impl AudioStream {
                     }
 
                     let mut written = 0;
+                    mainloop.borrow_mut().lock();
                     let peek = pa_stream.peek().expect("Could not peek PulseAudio stream");
                     match peek {
                         PeekResult::Empty => {
@@ -233,9 +235,10 @@ impl AudioStream {
         }
 
         let op = {
-            let mut sink_ref = Rc::clone(&sink);
             let ml_ref = Rc::clone(&mainloop);
+            let sink_ref = Rc::clone(&sink);
             let name = source_name.clone();
+            
             context.borrow_mut().introspect().get_sink_info_list(
                 move |sink_list: ListResult<&SinkInfo>| {
                     match sink_list {
@@ -251,7 +254,7 @@ impl AudioStream {
                                     eprintln!("index: {}", sink_info.index);
                                     eprintln!("name: {}", n);
                                     eprintln!("description: {}", description);
-                                    sink_ref = Rc::new(RefCell::new(Some(AudioSink::from_pa_sink_info(sink_info))));
+                                    *(sink_ref.borrow_mut()) = Some(AudioSink::from_pa_sink_info(sink_info));
                                 }
                             } else {
                                 eprintln!("Nameless device at index: {}", sink_info.index);
@@ -318,11 +321,14 @@ impl AudioStream {
             })));
         }
 
-        stream.lock().unwrap().connect_record(
-            Some(sink_ref.borrow().clone().unwrap().name.as_str()),
-            None,
-            flags::START_UNMUTED & flags::START_CORKED,
-        ).expect("Could not connect stream");
+        {
+            stream.lock().unwrap().connect_record(
+                Some(sink_ref.borrow().clone().unwrap().source_name.as_str()),
+                None,
+                flags::START_UNMUTED & flags::START_CORKED,
+            ).expect("Could not connect stream");
+        }
+
         let state_closure = || ReadyState::Stream(stream.clone().try_lock().unwrap().get_state());
         if !Self::is_ready(&mainloop, &state_closure) {
             eprintln!("Error connecting stream.");
@@ -351,10 +357,17 @@ impl AudioStream {
                     pulse::stream::State::Ready => {
                         return true;
                     }
-                    pulse::stream::State::Failed | pulse::stream::State::Terminated => {
+                    pulse::stream::State::Terminated => {
+                        eprintln!("Terminated");
                         mainloop.borrow_mut().unlock();
                         mainloop.borrow_mut().stop();
                         return false;
+                    }
+                    pulse::stream::State::Failed => {
+                        eprintln!("Failed");
+                        mainloop.borrow_mut().unlock();
+                        mainloop.borrow_mut().stop();
+                        return true;
                     }
                     _ => {
                         mainloop.borrow_mut().wait();
