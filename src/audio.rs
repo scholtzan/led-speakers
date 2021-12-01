@@ -1,5 +1,5 @@
 use pulse::callbacks::ListResult;
-use pulse::context::introspect::SinkInfo;
+use pulse::context::introspect::SourceInfo;
 use pulse::context::Context;
 use pulse::error::PAErr;
 #[allow(unused_imports)]
@@ -35,52 +35,52 @@ struct AudioContext {
 
 
 #[derive(Clone, Debug)]
-pub struct AudioSink {
+pub struct AudioSource {
     name: String,
     index: u32,
-    source_name: String,
-    spec: Option<Spec>
+    pub spec: Option<Spec>,
+    pub rate: u32,
+    channels: u8,
+    sample_format: Format,
+    pub sink_name: String, 
 }
 
-impl AudioSink {
-    fn from_pa_sink_info(sink_info: &SinkInfo) -> AudioSink {
-        let name = match &sink_info.name {
+impl AudioSource {
+    fn from_pa_source_info(source_info: &SourceInfo) -> AudioSource {
+        let name = match &source_info.name {
             None => String::from("Unnamed audio source"),
             Some(Cow::Borrowed(inner_name)) => String::from(*inner_name),
             Some(Cow::Owned(inner_name)) => inner_name.clone(),
         };
 
-        let source_name = match &sink_info.monitor_source_name {
+        let sink_name = match &source_info.monitor_of_sink_name {
             None => String::from("Unnamed audio source"),
             Some(Cow::Borrowed(inner_name)) => String::from(*inner_name),
             Some(Cow::Owned(inner_name)) => inner_name.clone(),
         };
 
-        AudioSink {
+        AudioSource {
             name: name,
-            index: sink_info.index,
-            source_name: source_name,
-            spec: Some(sink_info.sample_spec.clone()),
-        }
-    }
-
-    fn new(name: String, index: u32, source_name: String, spec: Option<Spec>) -> AudioSink {
-        AudioSink {
-            name,
-            index,
-            source_name,
-            spec,
+            index: source_info.index,
+            spec: Some(source_info.sample_spec.clone()),
+            rate: source_info.sample_spec.rate,
+            channels: source_info.sample_spec.channels,
+            sample_format: source_info.sample_spec.format,
+            sink_name
         }
     }
 }
 
-impl Default for AudioSink {
+impl Default for AudioSource {
     fn default() -> Self {
-        AudioSink {
+        AudioSource {
             name: String::from("Audio Source"),
             index: 0,
-            source_name: String::from("Audio Source"),
             spec: None,
+            rate: 44100,
+            channels: 2,
+            sample_format: Format::S16le,
+            sink_name: String::from("Audio Sink")
         }
     }
 }
@@ -88,24 +88,30 @@ impl Default for AudioSink {
 
 pub struct AudioStream {
     name: String,
-    source_name: String,
     handle: Option<JoinHandle<()>>,
     killed: Arc<AtomicBool>,
-    buffer: Option<Arc<Buffer>>
+    pub buffer: Option<Arc<Buffer>>,
+    pub source: Rc<RefCell<Option<AudioSource>>>
 }
 
 
 impl AudioStream {
-    pub fn new(name: String, source_name: String) -> AudioStream {
+    pub fn new(name: String, sink_name: String) -> AudioStream {
         let mut audio_stream = AudioStream {
-            name,
-            source_name,
+            name: name.clone(),
             killed: Arc::new(AtomicBool::from(false)),
             handle: None,
-            buffer: None
+            buffer: None,
+            source: Rc::new(RefCell::new(None))
         };
 
+        let (mainloop, context) = AudioStream::init(name);
+        let source = AudioStream::connect_source(&mainloop, &context, sink_name);
+
         audio_stream.buffer = Some(audio_stream.start().expect("Could not create audio stream"));
+        audio_stream.source = source;
+
+        mainloop.borrow_mut().stop();
 
         audio_stream
     }
@@ -146,12 +152,12 @@ impl AudioStream {
         let buffer = Arc::new(Buffer::new(30000)); // todo: configurable and make member
         let buf = buffer.clone();
         let name = self.name.clone();
-        let source_name = self.source_name.clone();
+        let sink_name = self.source.borrow().clone().unwrap().sink_name.clone();
+        let spec = self.source.borrow().clone().unwrap().spec.clone();
 
         self.handle = Some(thread::spawn(move || {
             let (mainloop, context) = Self::init(name);
-            let sink = Self::connect_sink(&mainloop, &context, source_name);
-            let mut stream = Self::connect_stream(&mainloop, &context, sink).expect("Error creating stream");
+            let mut stream = Self::connect_stream(&mainloop, &context, spec, sink_name).expect("Error creating stream");
             let mut pa_stream = stream.lock().unwrap();
             mainloop.borrow_mut().lock();
             pa_stream.uncork(None);
@@ -218,7 +224,7 @@ impl AudioStream {
         Ok(buffer.clone())
     }
 
-    fn connect_sink(mainloop: &Rc<RefCell<Mainloop>>, context: &Rc<RefCell<Context>>, source_name: String) -> Rc<RefCell<Option<AudioSink>>> {
+    fn connect_source(mainloop: &Rc<RefCell<Mainloop>>, context: &Rc<RefCell<Context>>, sink_name: String) -> Rc<RefCell<Option<AudioSource>>> {
         context
             .borrow_mut()
             .connect(None, pulse::context::flags::NOFLAGS, None)
@@ -226,38 +232,38 @@ impl AudioStream {
         mainloop.borrow_mut().lock();
         mainloop.borrow_mut().start().expect("Failed to start mainloop");
 
-        let mut sink = Rc::new(RefCell::new(None));
+        let mut source = Rc::new(RefCell::new(None));
         
         let state_closure = || ReadyState::Context(context.borrow().get_state());
         if !Self::is_ready(&mainloop, &state_closure) {
             eprintln!("Not ready");
-            return sink;
+            return source;
         }
 
         let op = {
             let ml_ref = Rc::clone(&mainloop);
-            let sink_ref = Rc::clone(&sink);
-            let name = source_name.clone();
+            let source_ref = Rc::clone(&source);
+            let name = sink_name.clone();
             
-            context.borrow_mut().introspect().get_sink_info_list(
-                move |sink_list: ListResult<&SinkInfo>| {
-                    match sink_list {
-                        ListResult::Item(sink_info) => {
-                            if let Some(n) = &sink_info.name {
+            context.borrow_mut().introspect().get_source_info_list(
+                move |source_list: ListResult<&SourceInfo>| {
+                    match source_list {
+                        ListResult::Item(source_info) => {
+                            if let Some(n) = &source_info.monitor_of_sink_name {
                                 if name == n.clone().into_owned()  {
-                                    let description: String = if let Some(d) = &sink_info.description {
+                                    let description: String = if let Some(d) = &source_info.description {
                                         d.deref().to_owned()
                                     } else {
                                         "".to_string()
                                     };
 
-                                    eprintln!("index: {}", sink_info.index);
+                                    eprintln!("index: {}", source_info.index);
                                     eprintln!("name: {}", n);
                                     eprintln!("description: {}", description);
-                                    *(sink_ref.borrow_mut()) = Some(AudioSink::from_pa_sink_info(sink_info));
+                                    *(source_ref.borrow_mut()) = Some(AudioSource::from_pa_source_info(source_info));
                                 }
                             } else {
-                                eprintln!("Nameless device at index: {}", sink_info.index);
+                                eprintln!("Nameless device at index: {}", source_info.index);
                             }
                         }
                         ListResult::End => {
@@ -281,12 +287,11 @@ impl AudioStream {
         }
 
         mainloop.borrow_mut().unlock();
-        sink
+        source
     }
 
-    fn connect_stream(mainloop: &Rc<RefCell<Mainloop>>, context: &Rc<RefCell<Context>>, sink: Rc<RefCell<Option<AudioSink>>>) -> Result<Arc<Mutex<Stream>>, String> {
-        let sink_ref = Rc::clone(&sink);
-        let spec = sink_ref.borrow().clone().unwrap().spec.unwrap();
+    fn connect_stream(mainloop: &Rc<RefCell<Mainloop>>, context: &Rc<RefCell<Context>>, spec: Option<Spec>, sink_name: String) -> Result<Arc<Mutex<Stream>>, String> {
+        let spec = spec.unwrap();
         let stream = Arc::new(Mutex::new(
             Stream::new(&mut context.borrow_mut(), "led-speaker", &spec, None)
                 .expect("Failed to create new stream"),
@@ -323,7 +328,7 @@ impl AudioStream {
 
         {
             stream.lock().unwrap().connect_record(
-                Some(sink_ref.borrow().clone().unwrap().source_name.as_str()),
+                Some(sink_name.as_str()),
                 None,
                 flags::START_UNMUTED & flags::START_CORKED,
             ).expect("Could not connect stream");

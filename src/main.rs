@@ -7,10 +7,11 @@ mod audio;
 mod buffer;
 mod settings;
 mod theme;
+mod transform;
 mod viz;
 
 use crate::settings::Settings;
-use crate::audio::AudioStream;
+use crate::transform::AudioTransformer;
 
 #[macro_use]
 extern crate dotenv_codegen;
@@ -71,8 +72,7 @@ async fn main() -> Result<()> {
     conf.merge(config::File::with_name(CONFIG)).unwrap();
     let settings: Settings = conf.try_into().unwrap();
 
-    let audio = AudioStream::new("led speakers".to_string(), settings.sink);
-    eprintln!("stream created");
+    let transformer = AudioTransformer::new(settings.sink, 10);
 
     HttpServer::new(move || {
         App::new()
