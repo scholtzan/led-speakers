@@ -35,7 +35,7 @@ impl AudioTransformer {
         transformer
     }
 
-    fn start(&mut self) {
+    pub fn start(&mut self) {
         let bins = self.bins;
         let source = self.source.clone();
         let killed = self.killed.clone();
@@ -100,6 +100,7 @@ impl AudioTransformer {
                 }
 
                 fft.process(&mut left);
+                eprintln!("{:?}", left);
                 // let left_buffer = fft_bufpool.chunk(output.clone().into_iter()).unwrap();
                 fft.process(&mut right);
                 // let right_buffer = fft_bufpool.chunk(output.clone().into_iter()).unwrap();

@@ -107,9 +107,8 @@ impl AudioStream {
 
         let (mainloop, context) = AudioStream::init(name);
         let source = AudioStream::connect_source(&mainloop, &context, sink_name);
-
-        audio_stream.buffer = Some(audio_stream.start().expect("Could not create audio stream"));
         audio_stream.source = source;
+        audio_stream.buffer = Some(audio_stream.start().expect("Could not create audio stream"));
 
         mainloop.borrow_mut().stop();
 
@@ -152,12 +151,12 @@ impl AudioStream {
         let buffer = Arc::new(Buffer::new(30000)); // todo: configurable and make member
         let buf = buffer.clone();
         let name = self.name.clone();
-        let sink_name = self.source.borrow().clone().unwrap().sink_name.clone();
+        let source_name = self.source.borrow().clone().unwrap().name.clone();
         let spec = self.source.borrow().clone().unwrap().spec.clone();
 
         self.handle = Some(thread::spawn(move || {
             let (mainloop, context) = Self::init(name);
-            let mut stream = Self::connect_stream(&mainloop, &context, spec, sink_name).expect("Error creating stream");
+            let mut stream = Self::connect_stream(&mainloop, &context, spec, source_name).expect("Error creating stream");
             let mut pa_stream = stream.lock().unwrap();
             mainloop.borrow_mut().lock();
             pa_stream.uncork(None);
@@ -262,8 +261,6 @@ impl AudioStream {
                                     eprintln!("description: {}", description);
                                     *(source_ref.borrow_mut()) = Some(AudioSource::from_pa_source_info(source_info));
                                 }
-                            } else {
-                                eprintln!("Nameless device at index: {}", source_info.index);
                             }
                         }
                         ListResult::End => {
@@ -290,7 +287,7 @@ impl AudioStream {
         source
     }
 
-    fn connect_stream(mainloop: &Rc<RefCell<Mainloop>>, context: &Rc<RefCell<Context>>, spec: Option<Spec>, sink_name: String) -> Result<Arc<Mutex<Stream>>, String> {
+    fn connect_stream(mainloop: &Rc<RefCell<Mainloop>>, context: &Rc<RefCell<Context>>, spec: Option<Spec>, source_name: String) -> Result<Arc<Mutex<Stream>>, String> {
         let spec = spec.unwrap();
         let stream = Arc::new(Mutex::new(
             Stream::new(&mut context.borrow_mut(), "led-speaker", &spec, None)
@@ -326,9 +323,11 @@ impl AudioStream {
             })));
         }
 
+        eprintln!("{:?}", source_name.as_str());
+
         {
             stream.lock().unwrap().connect_record(
-                Some(sink_name.as_str()),
+                Some(source_name.as_str()),
                 None,
                 flags::START_UNMUTED & flags::START_CORKED,
             ).expect("Could not connect stream");

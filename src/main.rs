@@ -72,7 +72,8 @@ async fn main() -> Result<()> {
     conf.merge(config::File::with_name(CONFIG)).unwrap();
     let settings: Settings = conf.try_into().unwrap();
 
-    let transformer = AudioTransformer::new(settings.sink, 10);
+    let mut transformer = AudioTransformer::new(settings.sink, 10);
+    transformer.start();
 
     HttpServer::new(move || {
         App::new()
