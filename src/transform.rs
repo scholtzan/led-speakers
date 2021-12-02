@@ -50,7 +50,8 @@ impl AudioTransformer {
             let mut left: Vec<Complex<f32>> = vec![Zero::zero(); bins];
             let mut right: Vec<Complex<f32>> = vec![Zero::zero(); bins];
 
-            let byte_rate = audio.source.borrow().clone().unwrap().rate;
+            let byte_rate = *(*audio.rate).lock().unwrap();
+            eprintln!("rate {:?}", byte_rate);
             let target_bytes_per_frame = (byte_rate / 60) as usize;
             let fft_byte_len: usize = bins * 4;
             let mut stream_buf =

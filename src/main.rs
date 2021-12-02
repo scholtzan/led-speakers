@@ -12,6 +12,7 @@ mod viz;
 
 use crate::settings::Settings;
 use crate::transform::AudioTransformer;
+use crate::audio::AudioStream;
 
 #[macro_use]
 extern crate dotenv_codegen;

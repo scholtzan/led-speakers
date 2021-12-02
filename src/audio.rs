@@ -88,10 +88,11 @@ impl Default for AudioSource {
 
 pub struct AudioStream {
     name: String,
+    sink_name: String,
     handle: Option<JoinHandle<()>>,
     killed: Arc<AtomicBool>,
     pub buffer: Option<Arc<Buffer>>,
-    pub source: Rc<RefCell<Option<AudioSource>>>
+    pub rate: Arc<Mutex<u32>>,
 }
 
 
@@ -99,18 +100,19 @@ impl AudioStream {
     pub fn new(name: String, sink_name: String) -> AudioStream {
         let mut audio_stream = AudioStream {
             name: name.clone(),
+            sink_name: sink_name.clone(),
             killed: Arc::new(AtomicBool::from(false)),
             handle: None,
             buffer: None,
-            source: Rc::new(RefCell::new(None))
+            rate: Arc::new(Mutex::new(0)),
         };
 
-        let (mainloop, context) = AudioStream::init(name);
-        let source = AudioStream::connect_source(&mainloop, &context, sink_name);
-        audio_stream.source = source;
         audio_stream.buffer = Some(audio_stream.start().expect("Could not create audio stream"));
 
-        mainloop.borrow_mut().stop();
+        let (mainloop, context) = Self::init(name);
+        let source = AudioStream::connect_source(&mainloop, &context, sink_name);
+        let spec = source.borrow().clone().unwrap().spec.clone();
+        audio_stream.rate = Arc::new(Mutex::new(spec.unwrap().rate));
 
         audio_stream
     }
@@ -150,12 +152,16 @@ impl AudioStream {
         let weak_killed: Weak<AtomicBool> = Arc::downgrade(&self.killed);
         let buffer = Arc::new(Buffer::new(30000)); // todo: configurable and make member
         let buf = buffer.clone();
+        let rate = Arc::clone(&self.rate); 
         let name = self.name.clone();
-        let source_name = self.source.borrow().clone().unwrap().name.clone();
-        let spec = self.source.borrow().clone().unwrap().spec.clone();
+        let sink_name = self.sink_name.clone();
 
         self.handle = Some(thread::spawn(move || {
             let (mainloop, context) = Self::init(name);
+            let source = AudioStream::connect_source(&mainloop, &context, sink_name);
+            let spec = source.borrow().clone().unwrap().spec.clone();
+            *(rate.lock().unwrap()) = spec.unwrap().rate;
+            let source_name = source.borrow().clone().unwrap().name.clone();
             let mut stream = Self::connect_stream(&mainloop, &context, spec, source_name).expect("Error creating stream");
             let mut pa_stream = stream.lock().unwrap();
             mainloop.borrow_mut().lock();
@@ -290,7 +296,7 @@ impl AudioStream {
     fn connect_stream(mainloop: &Rc<RefCell<Mainloop>>, context: &Rc<RefCell<Context>>, spec: Option<Spec>, source_name: String) -> Result<Arc<Mutex<Stream>>, String> {
         let spec = spec.unwrap();
         let stream = Arc::new(Mutex::new(
-            Stream::new(&mut context.borrow_mut(), "led-speaker", &spec, None)
+            Stream::new(&mut context.borrow_mut(), "led  speaker", &spec, None)
                 .expect("Failed to create new stream"),
         ));
 
