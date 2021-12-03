@@ -110,7 +110,20 @@ impl AudioTransformer {
         }));
     }
 
-    fn frequency_magnitudes(mut input: Vec<f32>, lower_cutoff: f32, upper_cutoff: f32, total_bands: usize, rate: u32, bins: u32, monstercat: f32) {
+    fn frequency_magnitudes(
+        mut input: Vec<f32>, 
+        mut band_max: Vec<f32>, 
+        mut prev_bands: Vec<f32>, 
+        mut band_peaks: Vec<f32>,
+        mut falloff: Vec<f32>,
+        lower_cutoff: f32, 
+        upper_cutoff: f32, 
+        total_bands: usize, 
+        rate: u32, 
+        bins: u32, 
+        monstercat: f32,
+        decay: f32) 
+        -> Vec<f32> {
         let mut cutoff_frequencies: Vec<f32> = vec![0.0; total_bands];
         let mut lower_cutoff_freq: Vec<f32> = vec![0.0; total_bands];
         let mut upper_cutoff_freq: Vec<f32> = vec![0.0; total_bands];
@@ -148,14 +161,65 @@ impl AudioTransformer {
         }
 
         // smoothing
-        Self::smooth(bands, total_bands, monstercat);
+        Self::smooth(&mut bands, total_bands, monstercat);
 
         // scaling
+        let mut max_val: f32 = 0.0;
+        let mut sum: f32 = 0.0;
 
+        for n in 0..total_bands {
+            if bands[n] > max_val {
+                max_val = bands[n];
+            }
+        }
+
+        let mut prev = band_max[0];
+        band_max[0] = max_val;
+        for n in 0..total_bands {
+            let mut tmp = band_max[n + 1];
+            band_max[n + 1] = prev;
+            prev = tmp;
+        }
+
+        for n in 0..total_bands {
+            sum += band_max[n];
+        }
+
+        let moving_average = sum / total_bands as f32;
+        let mut sqrt_sum = 0.0;
+        for n in 0..total_bands {
+            sqrt_sum += band_max[n] * band_max[n];
+        }
+        let std_dev = ((sqrt_sum / total_bands as f32) - moving_average.powf(2.0)).sqrt();
+        let max_height = (moving_average + (2.0 * std_dev)).max(1.0);
+
+        for n in 0..total_bands {
+            bands[n] = ((bands[n] / max_height) * 100.0 - 1.0).min(100.0 - 1.0);
+        }
+
+        // falloff
+        for n in 0..total_bands {
+            if bands[n] < prev_bands[n] {
+                bands[n] = band_peaks[n] - falloff[n] * decay;
+                if bands[n] < 0.0 {
+                    bands[n] = 0.0;
+                }
+
+                falloff[n] += 1.0;
+            }
+            else {
+                band_peaks[n] = bands[n];
+                falloff[n] = 0.0;
+            }
+
+            prev_bands[n] = bands[n];
+        }
+
+        return bands;
     }
 
     /// Apply monstercat filter to smooth input
-    fn smooth(mut input: Vec<f32>, total_bands: usize, monstercat: f32) {
+    fn smooth(input: &mut Vec<f32>, total_bands: usize, monstercat: f32) {
         for z in 0..(total_bands as usize) {
             for m_y in (z - 1)..0 {
                 let de = (z - m_y) as f32;
