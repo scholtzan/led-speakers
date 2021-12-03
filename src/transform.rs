@@ -11,6 +11,7 @@ use std::thread::JoinHandle;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
 use std::time;
+use std::cmp;
 
 
 use crate::audio::AudioStream;
@@ -107,10 +108,64 @@ impl AudioTransformer {
                 // let right_buffer = fft_bufpool.chunk(output.clone().into_iter()).unwrap();
             }
         }));
+    }
 
+    fn frequency_magnitudes(mut input: Vec<f32>, lower_cutoff: f32, upper_cutoff: f32, total_bands: usize, rate: u32, bins: u32, monstercat: f32) {
+        let mut cutoff_frequencies: Vec<f32> = vec![0.0; total_bands];
+        let mut lower_cutoff_freq: Vec<f32> = vec![0.0; total_bands];
+        let mut upper_cutoff_freq: Vec<f32> = vec![0.0; total_bands];
+        let mut bands: Vec<f32> = vec![0.0; total_bands];
 
-        // setup FFTW
-        // create new thread here
-        // move audio stream creation in to thread
+        let frequency_constant = (lower_cutoff / upper_cutoff).log(10.0) / (1.0 / total_bands as f32 - 1.0);
+
+        // compute cutoff frequencies
+        for n in 0..total_bands {
+            let distribution_coefficient = -frequency_constant + ((n + 1) as f32 / (total_bands as f32)) * frequency_constant;
+            cutoff_frequencies[n] = upper_cutoff * (10 as f32).powf(distribution_coefficient);
+            let frequency = cutoff_frequencies[n] / (rate as f32 / 2.0);
+            lower_cutoff_freq[n] = (frequency * bins as f32 / 4.0).floor();
+
+            if n > 0 {
+                if lower_cutoff_freq[n] <= lower_cutoff_freq[n - 1] {
+                    lower_cutoff_freq[n] = lower_cutoff_freq[n - 1] + 1.0;
+                }
+                upper_cutoff_freq[n - 1] = lower_cutoff_freq[n - 1];
+            }
+        }
+
+        // frequency bands
+        for n in 0..total_bands {
+            let mut frequency_magnitude: f32 = 0.0;
+            let mut cutoff_freq: usize = lower_cutoff_freq[n] as usize;
+            while cutoff_freq <= upper_cutoff_freq[n] as usize && (cutoff_freq as usize) < total_bands {
+                cutoff_freq += 1;
+                frequency_magnitude += input[cutoff_freq];
+            }
+
+            bands[n] = frequency_magnitude / (upper_cutoff_freq[n] - lower_cutoff_freq[n] + 1.0);
+            bands[n] *= (2.0 + (n as f32)).log(2.0) * (100.0 / (total_bands as f32));
+            bands[n] = bands[n].sqrt();
+        }
+
+        // smoothing
+        Self::smooth(bands, total_bands, monstercat);
+
+        // scaling
+
+    }
+
+    /// Apply monstercat filter to smooth input
+    fn smooth(mut input: Vec<f32>, total_bands: usize, monstercat: f32) {
+        for z in 0..(total_bands as usize) {
+            for m_y in (z - 1)..0 {
+                let de = (z - m_y) as f32;
+                input[m_y] = (input[z] / monstercat.powf(de)).max(input[m_y]);
+            }
+
+            for m_y in (z + 1)..(total_bands as usize) {
+                let de = (m_y - z) as f32;
+                input[m_y] = (input[z] / monstercat.powf(de)).max(input[m_y]);
+            }
+        }
     }
 }
