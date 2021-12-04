@@ -13,8 +13,12 @@ pub struct Settings {
     pub vizualizations: Vec<Box<dyn Viz>>,
     pub themes: Vec<Theme>,
     pub sink: String,
-    pub bins: usize
-    // other
+    pub bins: usize,
+    pub total_bands: usize,
+    pub lower_cutoff: f32,
+    pub upper_cutoff: f32,
+    pub monstercat: f32,
+    pub decay: f32,
 }
 
 

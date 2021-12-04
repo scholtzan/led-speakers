@@ -14,5 +14,10 @@
         }
     ],
     "sink": "alsa_output.usb-Generic_USB2.0_Device_20170726905959-00.analog-stereo",
-    "bins": 256
+    "bins": 256,
+    "total_bands": 20,
+    "lower_cutoff": 50.0,
+    "upper_cutoff": 10000.0,
+    "monstercat": 100.0,
+    "decay": 100.0
 }

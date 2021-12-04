@@ -16,21 +16,64 @@ use std::cmp;
 
 use crate::audio::AudioStream;
 
+
+struct TransformedAudio {
+    pub band_max: Vec<f32>, 
+    pub bands: Vec<f32>, 
+    pub band_peaks: Vec<f32>,
+    pub falloff: Vec<f32>,
+}
+
+
+impl TransformedAudio {
+    pub fn new(total_bands: usize, bins: usize) -> TransformedAudio {
+        TransformedAudio {
+            band_max: vec![0.0; bins],
+            bands: vec![0.0; total_bands],
+            band_peaks: vec![0.0; total_bands],
+            falloff: vec![0.0; total_bands]
+        }
+    }
+}
+
+
 /// FFT of audio input 
 pub struct AudioTransformer {
     handle: Option<JoinHandle<()>>,
     source: String,
     bins: usize,
+    total_bands: usize,
+    upper_cutoff: f32,
+    lower_cutoff: f32,
+    monstercat: f32,
+    decay: f32,
     killed: Arc<AtomicBool>,
+    left_bands: Arc<Mutex<Vec<f32>>>,
+    right_bands: Arc<Mutex<Vec<f32>>>,
 }
 
+
 impl AudioTransformer {
-    pub fn new(source: String, bins: usize) -> AudioTransformer {
+    pub fn new(
+        source: String, 
+        bins: usize, 
+        total_bands: usize, 
+        lower_cutoff: f32, 
+        upper_cutoff: f32, 
+        monstercat: f32, 
+        decay: f32) -> AudioTransformer {
         let transformer = AudioTransformer {
             handle: None,
             source,
             bins,
+            total_bands,
+            upper_cutoff,
+            lower_cutoff,
+            monstercat,
+            decay,
             killed: Arc::new(AtomicBool::from(false)),
+            left_bands: Arc::new(Mutex::new(Vec::new())),
+            right_bands: Arc::new(Mutex::new(Vec::new())),
         };
 
         transformer
@@ -38,8 +81,15 @@ impl AudioTransformer {
 
     pub fn start(&mut self) {
         let bins = self.bins;
+        let total_bands = self.total_bands;
+        let lower_cutoff = self.lower_cutoff;
+        let upper_cutoff = self.upper_cutoff;
+        let monstercat = self.monstercat;
+        let decay = self.decay;
         let source = self.source.clone();
         let killed = self.killed.clone();
+        let right_bands = self.right_bands.clone();
+        let left_bands = self.left_bands.clone();
 
         self.handle = Some(thread::spawn(move || {
             let audio = AudioStream::new("led speakers".to_string(), source);
@@ -51,8 +101,10 @@ impl AudioTransformer {
             let mut left: Vec<Complex<f32>> = vec![Zero::zero(); bins];
             let mut right: Vec<Complex<f32>> = vec![Zero::zero(); bins];
 
+            let mut left_transformed = TransformedAudio::new(total_bands, bins);
+            let mut right_transformed = TransformedAudio::new(total_bands, bins);
+
             let byte_rate = *(*audio.rate).lock().unwrap();
-            eprintln!("rate {:?}", byte_rate);
             let target_bytes_per_frame = (byte_rate / 60) as usize;
             let fft_byte_len: usize = bins * 4;
             let mut stream_buf =
@@ -102,25 +154,47 @@ impl AudioTransformer {
                 }
 
                 fft.process(&mut left);
-                eprintln!("{:?}", left);
-                // let left_buffer = fft_bufpool.chunk(output.clone().into_iter()).unwrap();
+                let left_real: Vec<f32> = left.iter().map(|c| (c.im.powf(2.0) + c.re.powf(2.0)).sqrt()).collect();
+                *(left_bands.lock().unwrap()) = Self::frequency_magnitudes(
+                    left_real, 
+                    &mut left_transformed, 
+                    lower_cutoff, 
+                    upper_cutoff, 
+                    total_bands, 
+                    byte_rate, 
+                    bins, 
+                    monstercat, 
+                    decay
+                );
+                eprintln!("left: {:?}", left_bands.lock().unwrap());
+
                 fft.process(&mut right);
-                // let right_buffer = fft_bufpool.chunk(output.clone().into_iter()).unwrap();
+                let right_real: Vec<f32> = right.iter().map(|c| (c.im.powf(2.0) + c.re.powf(2.0)).sqrt()).collect();
+                *(right_bands.lock().unwrap()) = Self::frequency_magnitudes(
+                    right_real, 
+                    &mut right_transformed, 
+                    lower_cutoff, 
+                    upper_cutoff, 
+                    total_bands, 
+                    byte_rate, 
+                    bins, 
+                    monstercat, 
+                    decay
+                );
+
+                eprintln!("right: {:?}", right_bands.lock().unwrap());
             }
         }));
     }
 
     fn frequency_magnitudes(
-        mut input: Vec<f32>, 
-        mut band_max: Vec<f32>, 
-        mut prev_bands: Vec<f32>, 
-        mut band_peaks: Vec<f32>,
-        mut falloff: Vec<f32>,
+        input: Vec<f32>, 
+        transformed_audio: &mut TransformedAudio,
         lower_cutoff: f32, 
         upper_cutoff: f32, 
         total_bands: usize, 
         rate: u32, 
-        bins: u32, 
+        bins: usize, 
         monstercat: f32,
         decay: f32) 
         -> Vec<f32> {
@@ -173,22 +247,22 @@ impl AudioTransformer {
             }
         }
 
-        let mut prev = band_max[0];
-        band_max[0] = max_val;
+        let mut prev = transformed_audio.band_max[0];
+        transformed_audio.band_max[0] = max_val;
         for n in 0..total_bands {
-            let mut tmp = band_max[n + 1];
-            band_max[n + 1] = prev;
+            let mut tmp = transformed_audio.band_max[n + 1];
+            transformed_audio.band_max[n + 1] = prev;
             prev = tmp;
         }
 
         for n in 0..total_bands {
-            sum += band_max[n];
+            sum += transformed_audio.band_max[n];
         }
 
         let moving_average = sum / total_bands as f32;
         let mut sqrt_sum = 0.0;
         for n in 0..total_bands {
-            sqrt_sum += band_max[n] * band_max[n];
+            sqrt_sum += transformed_audio.band_max[n] * transformed_audio.band_max[n];
         }
         let std_dev = ((sqrt_sum / total_bands as f32) - moving_average.powf(2.0)).sqrt();
         let max_height = (moving_average + (2.0 * std_dev)).max(1.0);
@@ -199,20 +273,20 @@ impl AudioTransformer {
 
         // falloff
         for n in 0..total_bands {
-            if bands[n] < prev_bands[n] {
-                bands[n] = band_peaks[n] - falloff[n] * decay;
+            if bands[n] < transformed_audio.bands[n] {
+                bands[n] = transformed_audio.band_peaks[n] - transformed_audio.falloff[n] * decay;
                 if bands[n] < 0.0 {
                     bands[n] = 0.0;
                 }
 
-                falloff[n] += 1.0;
+                transformed_audio.falloff[n] += 1.0;
             }
             else {
-                band_peaks[n] = bands[n];
-                falloff[n] = 0.0;
+                transformed_audio.band_peaks[n] = bands[n];
+                transformed_audio.falloff[n] = 0.0;
             }
 
-            prev_bands[n] = bands[n];
+            transformed_audio.bands[n] = bands[n];
         }
 
         return bands;
