@@ -2,7 +2,7 @@ use serde::{Deserialize, Deserializer, Serialize};
 use serde::de::Error;
 use serde_json::Value;
 
-use crate::viz::{Viz, RotatingViz, SparkleViz};
+use crate::viz::{Viz, RotatingViz, SparkleViz, RotatingVizConfig, SparkleVizConfig};
 use crate::theme::Theme;
 
 
@@ -28,12 +28,12 @@ fn parse_visualizations<'de, D>(d: D) -> Result<Vec<Box<dyn Viz>>, D::Error> whe
     parsed.as_object().unwrap().into_iter().map(|(name, args)| {
         let viz: Result<Box<dyn Viz>, D::Error> = match name.as_str() {
             "rotating_viz" => {
-                let viz: RotatingViz = serde_json::from_value(args.clone()).unwrap();
-                Ok(Box::new(viz))
+                let viz_config: RotatingVizConfig = serde_json::from_value(args.clone()).unwrap();
+                Ok(Box::new(RotatingViz::new(viz_config)))
             },
             "sparkle_viz" => {
-                let viz: SparkleViz = serde_json::from_value(args.clone()).unwrap();
-                Ok(Box::new(viz))
+                let viz_config: SparkleVizConfig = serde_json::from_value(args.clone()).unwrap();
+                Ok(Box::new(SparkleViz::new(viz_config)))
             },
             _ => {
                 Err(D::Error::custom(format!("Unknown {:?}", name.as_str())))

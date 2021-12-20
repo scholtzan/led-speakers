@@ -2,6 +2,9 @@ use actix_cors::Cors;
 use actix_web::{get, post, http, web, App, Error, HttpServer, HttpResponse, Responder};
 use anyhow::Result;
 use dotenv::dotenv;
+use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::{Arc, Mutex, Weak};
+use dyn_clone::DynClone;
 
 mod audio;
 mod buffer;
@@ -13,6 +16,8 @@ mod viz;
 use crate::settings::Settings;
 use crate::transform::AudioTransformer;
 use crate::audio::AudioStream;
+use crate::viz::VizRunner;
+use crate::viz::RotatingViz;
 
 #[macro_use]
 extern crate dotenv_codegen;
@@ -62,6 +67,10 @@ async fn set_viz(
     HttpResponse::Ok().json("Todo: update viz")
 }
 
+struct AppState {
+    vizualization: Mutex<VizRunner>
+}
+
 
 #[actix_rt::main]
 async fn main() -> Result<()> {
@@ -83,6 +92,14 @@ async fn main() -> Result<()> {
         settings.decay
     );
     transformer.start();
+
+    let viz = dyn_clone::clone_box(&*settings.vizualizations.into_iter().find(|v| v.get_name() == "rotating_viz").unwrap());
+    let app_state = web::Data::new(AppState {
+        vizualization: Mutex::new(VizRunner {
+            viz: Arc::new(Mutex::new(viz)),
+            is_stopped: Arc::new(AtomicBool::from(true))
+        })
+    });
 
     HttpServer::new(move || {
         App::new()
