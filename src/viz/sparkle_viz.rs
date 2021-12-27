@@ -2,6 +2,7 @@ use serde::{Deserialize, Serialize};
 use std::sync::{Arc, Mutex, Weak};
 use std::sync::atomic::{AtomicBool, Ordering};
 
+use crate::led::Led;
 use crate::viz::Viz;
 
 #[derive(Serialize, Deserialize, Debug, PartialEq, Clone)]
@@ -35,7 +36,7 @@ unsafe impl Sync for SparkleViz {}
 impl SparkleViz {
     pub fn new(config: SparkleVizConfig) -> Self {
         SparkleViz {
-            config
+            config,
         }
     }
 }

@@ -4,6 +4,8 @@ use std::sync::{Arc, Mutex, Weak};
 use std::sync::atomic::{AtomicBool, Ordering};
 use dyn_clone::DynClone;
 
+use crate::led::Led;
+
 
 #[typetag::serde]
 pub trait Viz: DynClone + Sync + Send {
@@ -16,20 +18,23 @@ pub trait Viz: DynClone + Sync + Send {
 // todo: move threading into viz runner
 // todo: move start stop into viz runner
 pub struct VizRunner {
-    pub viz: Arc<Mutex<Box<dyn Viz>>>,
-    pub 
-    
-    is_stopped: Arc<AtomicBool>
+    pub viz_left: Arc<Mutex<Box<dyn Viz>>>,
+    pub viz_right: Arc<Mutex<Box<dyn Viz>>>,
+    pub output_left: Arc<Mutex<Led>>,
+    pub output_right: Arc<Mutex<Led>>,
+    pub is_stopped: Arc<AtomicBool>
 }
 
 impl VizRunner {
     pub fn start(&self) {
         let stopped = self.is_stopped.clone();
-        let viz = Arc::clone(&self.viz);
+        let left_viz = Arc::clone(&self.viz_left);
+        let right_viz = Arc::clone(&self.viz_right);
 
         let handle = thread::spawn(move || {
             while !stopped.load(Ordering::Relaxed) {
-                viz.lock().unwrap().update();
+                left_viz.lock().unwrap().update();
+                right_viz.lock().unwrap().update();
             }
         });
     }

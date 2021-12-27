@@ -92,13 +92,18 @@ async fn main() -> Result<()> {
         settings.monstercat, 
         settings.decay
     );
-    transformer.start();
+    transformer.start();    // todo: get right and left bands into viz
 
-    let viz = dyn_clone::clone_box(&*settings.vizualizations.into_iter().find(|v| v.get_name() == "rotating_viz").unwrap());
+    let viz_left = dyn_clone::clone_box(&*settings.vizualizations.into_iter().find(|v| v.get_name() == "solid_viz").unwrap());
+    let viz_right = dyn_clone::clone_box(&*viz_left);
+
     let app_state = web::Data::new(AppState {
         vizualization: Mutex::new(VizRunner {
-            viz: Arc::new(Mutex::new(viz)),
-            is_stopped: Arc::new(AtomicBool::from(true))
+            viz_left: Arc::new(Mutex::new(viz_left)),
+            viz_right: Arc::new(Mutex::new(viz_right)),
+            output_left: Arc::new(Mutex::new(settings.output.left.to_led())),
+            output_right: Arc::new(Mutex::new(settings.output.right.to_led())),
+            is_stopped: Arc::new(AtomicBool::from(false))    // todo: false by default?
         })
     });
 

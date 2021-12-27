@@ -2,6 +2,21 @@
     "vizualizations": {
         "rotating_viz": {
             "pretty_name": "Rotating Viz"
+        },
+        "solid_viz": {
+            "pretty_name": "Solid Viz"
+        }
+    },
+    "output": {
+        "left": {
+            "spi_bus": "spi0",
+            "total_leds": 120,
+            "clock_speed_hz": 250000000
+        },
+        "right": {
+            "spi_bus": "spi1",
+            "total_leds": 120,
+            "clock_speed_hz": 250000000
         }
     },
     "themes": [

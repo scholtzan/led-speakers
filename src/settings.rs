@@ -3,28 +3,40 @@ use serde::{Deserialize, Deserializer, Serialize};
 use serde::de::Error;
 use serde_json::Value;
 
-use crate::viz::{Viz, RotatingViz, SparkleViz, RotatingVizConfig, SparkleVizConfig};
+use crate::viz::{Viz, RotatingViz, SparkleViz, RotatingVizConfig, SparkleVizConfig, SolidViz, SolidVizConfig};
 use crate::theme::Theme;
 use crate::led::Led;
 
+#[derive(Serialize, Deserialize)]
+#[serde(remote = "spi::Bus")]
+enum SpiBus {
+    Spi0,
+    Spi1,
+    Spi2,
+    Spi3,
+    Spi4,
+    Spi5,
+    Spi6,
+}
 
 #[derive(Serialize, Deserialize)]
 pub struct Output {
-    clock_speed_hz: u32,
-    spi_bus: spi::Bus,
-    total_leds: u8
+    pub clock_speed_hz: u32,
+    #[serde(with = "SpiBus")]
+    pub spi_bus: spi::Bus,
+    pub total_leds: usize
 }
 
 impl Output {
-    fn to_led(&self) -> Led {
-        Led::new(self.total_leds, self.bus, self.clock_speed_hz)
+    pub fn to_led(&self) -> Led {
+        Led::new(self.total_leds, self.spi_bus, self.clock_speed_hz)
     }
 }
 
 #[derive(Serialize, Deserialize)]
 pub struct OutputSettings {
-    left: Output,
-    right: Output
+    pub left: Output,
+    pub right: Output
 }
 
 
@@ -49,6 +61,7 @@ fn parse_visualizations<'de, D>(d: D) -> Result<Vec<Box<dyn Viz>>, D::Error> whe
 
     parsed.as_object().unwrap().into_iter().map(|(name, args)| {
         let viz: Result<Box<dyn Viz>, D::Error> = match name.as_str() {
+            // todo: move logic to viz?
             "rotating_viz" => {
                 let viz_config: RotatingVizConfig = serde_json::from_value(args.clone()).unwrap();
                 Ok(Box::new(RotatingViz::new(viz_config)))
@@ -56,6 +69,10 @@ fn parse_visualizations<'de, D>(d: D) -> Result<Vec<Box<dyn Viz>>, D::Error> whe
             "sparkle_viz" => {
                 let viz_config: SparkleVizConfig = serde_json::from_value(args.clone()).unwrap();
                 Ok(Box::new(SparkleViz::new(viz_config)))
+            },
+            "solid_viz" => {
+                let viz_config: SolidVizConfig = serde_json::from_value(args.clone()).unwrap();
+                Ok(Box::new(SolidViz::new(viz_config)))
             },
             _ => {
                 Err(D::Error::custom(format!("Unknown {:?}", name.as_str())))
