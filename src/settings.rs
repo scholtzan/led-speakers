@@ -1,16 +1,38 @@
+use rppal::spi;
 use serde::{Deserialize, Deserializer, Serialize};
 use serde::de::Error;
 use serde_json::Value;
 
 use crate::viz::{Viz, RotatingViz, SparkleViz, RotatingVizConfig, SparkleVizConfig};
 use crate::theme::Theme;
+use crate::led::Led;
 
+
+#[derive(Serialize, Deserialize)]
+pub struct Output {
+    clock_speed_hz: u32,
+    spi_bus: spi::Bus,
+    total_leds: u8
+}
+
+impl Output {
+    fn to_led(&self) -> Led {
+        Led::new(self.total_leds, self.bus, self.clock_speed_hz)
+    }
+}
+
+#[derive(Serialize, Deserialize)]
+pub struct OutputSettings {
+    left: Output,
+    right: Output
+}
 
 
 #[derive(Serialize, Deserialize)]
 pub struct Settings {
     #[serde(deserialize_with="parse_visualizations")]
     pub vizualizations: Vec<Box<dyn Viz>>,
+    pub output: OutputSettings,
     pub themes: Vec<Theme>,
     pub sink: String,
     pub bins: usize,

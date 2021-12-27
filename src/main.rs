@@ -12,6 +12,7 @@ mod settings;
 mod theme;
 mod transform;
 mod viz;
+mod led;
 
 use crate::settings::Settings;
 use crate::transform::AudioTransformer;

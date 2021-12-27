@@ -3,6 +3,7 @@ use std::sync::{Arc, Mutex, Weak};
 use std::sync::atomic::{AtomicBool, Ordering};
 
 use crate::viz::Viz;
+use crate::led::Led;
 
 #[derive(Serialize, Deserialize, Debug, PartialEq, Clone)]
 pub struct RotatingVizConfig {
@@ -12,6 +13,7 @@ pub struct RotatingVizConfig {
 #[derive(Deserialize, Serialize, Clone)]
 pub struct RotatingViz {
     pub config: RotatingVizConfig,
+    pub led: Led
 }
 
 #[typetag::serde]
