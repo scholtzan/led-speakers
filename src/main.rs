@@ -99,15 +99,19 @@ async fn main() -> Result<()> {
     let mut viz_right = dyn_clone::clone_box(&*viz_left);
     viz_right.set_total_pixels(settings.output.right.total_leds);
 
+    eprintln!("start viz");
+    let viz_runner = VizRunner {
+        viz_left: Arc::new(Mutex::new(viz_left)),
+        viz_right: Arc::new(Mutex::new(viz_right)),
+        output_left: Arc::new(Mutex::new(settings.output.left.to_led())),
+        output_right: Arc::new(Mutex::new(settings.output.right.to_led())),
+        is_stopped: Arc::new(AtomicBool::from(false)),    // todo: false by default?
+        theme: settings.themes[0].clone(),
+    };
+    viz_runner.start();
+
     let app_state = web::Data::new(AppState {
-        vizualization: Mutex::new(VizRunner {
-            viz_left: Arc::new(Mutex::new(viz_left)),
-            viz_right: Arc::new(Mutex::new(viz_right)),
-            output_left: Arc::new(Mutex::new(settings.output.left.to_led())),
-            output_right: Arc::new(Mutex::new(settings.output.right.to_led())),
-            is_stopped: Arc::new(AtomicBool::from(false)),    // todo: false by default?
-            theme: settings.themes[0].clone(),
-        })
+        vizualization: Mutex::new(viz_runner)
     });
 
     HttpServer::new(move || {

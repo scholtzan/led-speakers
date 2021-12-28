@@ -68,10 +68,10 @@ impl VizRunner {
                     let color = colors[pixel_viz.color_index % colors.len()];
                     left_output.lock().unwrap().set_pixel(
                         i, 
-                        (((color.r as f32) * pixel_viz.red_mul) as u8) % 255,
-                        (((color.g as f32) * pixel_viz.green_mul) as u8) % 255,
-                        (((color.b as f32) * pixel_viz.blue_mul) as u8) % 255,
-                        (((color.a as f32) * pixel_viz.brightness_mul) as u8) % 255,
+                        (((color.r as f32) * pixel_viz.red_mul) as u8),
+                        (((color.g as f32) * pixel_viz.green_mul) as u8),
+                        (((color.b as f32) * pixel_viz.blue_mul) as u8),
+                        (((color.a as f32) * pixel_viz.brightness_mul) as u8),
                     )
                 }
 
@@ -79,10 +79,10 @@ impl VizRunner {
                     let color = colors[pixel_viz.color_index % colors.len()];
                     right_output.lock().unwrap().set_pixel(
                         i, 
-                        (((color.r as f32) * pixel_viz.red_mul) as u8) % 255,
-                        (((color.g as f32) * pixel_viz.green_mul) as u8) % 255,
-                        (((color.b as f32) * pixel_viz.blue_mul) as u8) % 255,
-                        (((color.a as f32) * pixel_viz.brightness_mul) as u8) % 255,
+                        (((color.r as f32) * pixel_viz.red_mul) as u8),
+                        (((color.g as f32) * pixel_viz.green_mul) as u8),
+                        (((color.b as f32) * pixel_viz.blue_mul) as u8),
+                        (((color.a as f32) * pixel_viz.brightness_mul) as u8),
                     )
                 }
 

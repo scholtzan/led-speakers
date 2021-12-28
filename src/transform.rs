@@ -166,7 +166,7 @@ impl AudioTransformer {
                     monstercat, 
                     decay
                 );
-                eprintln!("left: {:?}", left_bands.lock().unwrap());
+                // eprintln!("left: {:?}", left_bands.lock().unwrap());
 
                 fft.process(&mut right);
                 let right_real: Vec<f32> = right.iter().map(|c| (c.im.powf(2.0) + c.re.powf(2.0)).sqrt()).collect();
@@ -182,7 +182,7 @@ impl AudioTransformer {
                     decay
                 );
 
-                eprintln!("right: {:?}", right_bands.lock().unwrap());
+                // eprintln!("right: {:?}", right_bands.lock().unwrap());
             }
         }));
     }
