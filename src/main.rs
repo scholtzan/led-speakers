@@ -94,8 +94,10 @@ async fn main() -> Result<()> {
     );
     transformer.start();    // todo: get right and left bands into viz
 
-    let viz_left = dyn_clone::clone_box(&*settings.vizualizations.into_iter().find(|v| v.get_name() == "solid_viz").unwrap());
-    let viz_right = dyn_clone::clone_box(&*viz_left);
+    let mut viz_left = dyn_clone::clone_box(&*settings.vizualizations.into_iter().find(|v| v.get_name() == "solid_viz").unwrap());
+    viz_left.set_total_pixels(settings.output.left.total_leds);
+    let mut viz_right = dyn_clone::clone_box(&*viz_left);
+    viz_right.set_total_pixels(settings.output.right.total_leds);
 
     let app_state = web::Data::new(AppState {
         vizualization: Mutex::new(VizRunner {
@@ -103,7 +105,8 @@ async fn main() -> Result<()> {
             viz_right: Arc::new(Mutex::new(viz_right)),
             output_left: Arc::new(Mutex::new(settings.output.left.to_led())),
             output_right: Arc::new(Mutex::new(settings.output.right.to_led())),
-            is_stopped: Arc::new(AtomicBool::from(false))    // todo: false by default?
+            is_stopped: Arc::new(AtomicBool::from(false)),    // todo: false by default?
+            theme: settings.themes[0].clone(),
         })
     });
 
