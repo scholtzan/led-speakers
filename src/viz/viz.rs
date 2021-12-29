@@ -5,6 +5,7 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use dyn_clone::DynClone;
 
 use crate::led::Led;
+use crate::settings::OutputSettings;
 use crate::theme::Theme;
 use std::time;
 
@@ -44,8 +45,7 @@ impl Default for PixelViz {
 pub struct VizRunner {
     pub viz_left: Arc<Mutex<Box<dyn Viz>>>,
     pub viz_right: Arc<Mutex<Box<dyn Viz>>>,
-    pub output_left: Arc<Mutex<Led>>,
-    pub output_right: Arc<Mutex<Led>>,
+    pub output: OutputSettings,
     pub is_stopped: Arc<AtomicBool>,
     pub theme: Theme,
 }
@@ -55,39 +55,41 @@ impl VizRunner {
         let stopped = self.is_stopped.clone();
         let left_viz = Arc::clone(&self.viz_left);
         let right_viz = Arc::clone(&self.viz_right);
-        let left_output = Arc::clone(&self.output_left);
-        let right_output = Arc::clone(&self.output_right);
+        let output = self.output.clone();
         let colors = self.theme.colors.clone();
 
         let handle = thread::spawn(move || {
+            let mut left_output = output.left.to_led();
+            let mut right_output = output.right.to_led();
+
             while !stopped.load(Ordering::Relaxed) {
                 let left_pixel_viz = left_viz.lock().unwrap().update();
                 let right_pixel_viz = right_viz.lock().unwrap().update();
 
                 for (i, pixel_viz) in left_pixel_viz.iter().enumerate() {
                     let color = colors[pixel_viz.color_index % colors.len()];
-                    left_output.lock().unwrap().set_pixel(
+                    left_output.set_pixel(
                         i, 
-                        (((color.r as f32) * pixel_viz.red_mul) as u8),
-                        (((color.g as f32) * pixel_viz.green_mul) as u8),
-                        (((color.b as f32) * pixel_viz.blue_mul) as u8),
-                        (((color.a as f32) * pixel_viz.brightness_mul) as u8),
+                        ((color.r as f32) * pixel_viz.red_mul) as u8,
+                        ((color.g as f32) * pixel_viz.green_mul) as u8,
+                        ((color.b as f32) * pixel_viz.blue_mul) as u8,
+                        ((color.a as f32) * pixel_viz.brightness_mul) as u8,
                     )
                 }
 
                 for (i, pixel_viz) in right_pixel_viz.iter().enumerate() {
                     let color = colors[pixel_viz.color_index % colors.len()];
-                    right_output.lock().unwrap().set_pixel(
+                    right_output.set_pixel(
                         i, 
-                        (((color.r as f32) * pixel_viz.red_mul) as u8),
-                        (((color.g as f32) * pixel_viz.green_mul) as u8),
-                        (((color.b as f32) * pixel_viz.blue_mul) as u8),
-                        (((color.a as f32) * pixel_viz.brightness_mul) as u8),
+                        ((color.r as f32) * pixel_viz.red_mul) as u8,
+                        ((color.g as f32) * pixel_viz.green_mul) as u8,
+                        ((color.b as f32) * pixel_viz.blue_mul) as u8,
+                        ((color.a as f32) * pixel_viz.brightness_mul) as u8,
                     )
                 }
 
-                left_output.lock().unwrap().show();
-                right_output.lock().unwrap().show();
+                left_output.show();
+                right_output.show();
                 thread::sleep(time::Duration::from_micros(500));
             }
         });

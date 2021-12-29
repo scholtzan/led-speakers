@@ -9,21 +9,21 @@
     },
     "output": {
         "left": {
-            "spi_bus": "Spi0",
-            "total_leds": 120,
-            "clock_speed_hz": 3000000
+            "spi": "/dev/spidev0.0",
+            "total_leds": 150,
+            "clock_speed_hz": 800000
         },
         "right": {
-            "spi_bus": "Spi1",
-            "total_leds": 120,
-            "clock_speed_hz": 3000000
+            "spi": "/dev/spidev1.0",
+            "total_leds": 150,
+            "clock_speed_hz": 800000
         }
     },
     "themes": [
         {
             "name": "Test Theme",
             "colors": [
-                [255, 0, 0, 1]
+                [255, 0, 0, 255]
             ]    
         }
     ],

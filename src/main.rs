@@ -20,6 +20,9 @@ use crate::audio::AudioStream;
 use crate::viz::VizRunner;
 use crate::viz::RotatingViz;
 
+
+
+
 #[macro_use]
 extern crate dotenv_codegen;
 
@@ -77,8 +80,6 @@ struct AppState {
 async fn main() -> Result<()> {
     dotenv().ok();
 
-    eprintln!("Start LED speakers");
-
     let mut conf = config::Config::default();
     conf.merge(config::File::with_name(CONFIG)).unwrap();
     let settings: Settings = conf.try_into().unwrap();
@@ -95,16 +96,15 @@ async fn main() -> Result<()> {
     transformer.start();    // todo: get right and left bands into viz
 
     let mut viz_left = dyn_clone::clone_box(&*settings.vizualizations.into_iter().find(|v| v.get_name() == "solid_viz").unwrap());
-    viz_left.set_total_pixels(settings.output.left.total_leds);
+    viz_left.set_total_pixels(settings.output.left.total_leds as usize);
     let mut viz_right = dyn_clone::clone_box(&*viz_left);
-    viz_right.set_total_pixels(settings.output.right.total_leds);
+    viz_right.set_total_pixels(settings.output.right.total_leds as usize);
 
     eprintln!("start viz");
     let viz_runner = VizRunner {
         viz_left: Arc::new(Mutex::new(viz_left)),
         viz_right: Arc::new(Mutex::new(viz_right)),
-        output_left: Arc::new(Mutex::new(settings.output.left.to_led())),
-        output_right: Arc::new(Mutex::new(settings.output.right.to_led())),
+        output: settings.output.clone(),
         is_stopped: Arc::new(AtomicBool::from(false)),    // todo: false by default?
         theme: settings.themes[0].clone(),
     };

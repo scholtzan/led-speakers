@@ -1,4 +1,3 @@
-use rppal::spi;
 use serde::{Deserialize, Deserializer, Serialize};
 use serde::de::Error;
 use serde_json::Value;
@@ -7,33 +6,20 @@ use crate::viz::{Viz, RotatingViz, SparkleViz, RotatingVizConfig, SparkleVizConf
 use crate::theme::Theme;
 use crate::led::Led;
 
-#[derive(Serialize, Deserialize)]
-#[serde(remote = "spi::Bus")]
-enum SpiBus {
-    Spi0,
-    Spi1,
-    Spi2,
-    Spi3,
-    Spi4,
-    Spi5,
-    Spi6,
-}
-
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Clone)]
 pub struct Output {
     pub clock_speed_hz: u32,
-    #[serde(with = "SpiBus")]
-    pub spi_bus: spi::Bus,
-    pub total_leds: usize
+    pub spi: String,
+    pub total_leds: i32
 }
 
 impl Output {
     pub fn to_led(&self) -> Led {
-        Led::new(self.total_leds, self.spi_bus, self.clock_speed_hz)
+        Led::new(self.total_leds, self.spi.clone(), self.clock_speed_hz)
     }
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Clone)]
 pub struct OutputSettings {
     pub left: Output,
     pub right: Output
