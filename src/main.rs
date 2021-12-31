@@ -95,7 +95,7 @@ async fn main() -> Result<()> {
     );
     transformer.start();    // todo: get right and left bands into viz
 
-    let mut viz_left = dyn_clone::clone_box(&*settings.vizualizations.into_iter().find(|v| v.get_name() == "solid_viz").unwrap());
+    let mut viz_left = dyn_clone::clone_box(&*settings.vizualizations.into_iter().find(|v| v.get_name() == "center_viz").unwrap());
     viz_left.set_total_pixels(settings.output.left.total_leds as usize);
     let mut viz_right = dyn_clone::clone_box(&*viz_left);
     viz_right.set_total_pixels(settings.output.right.total_leds as usize);
@@ -104,9 +104,10 @@ async fn main() -> Result<()> {
     let viz_runner = VizRunner {
         viz_left: Arc::new(Mutex::new(viz_left)),
         viz_right: Arc::new(Mutex::new(viz_right)),
-        output: settings.output.clone(),
+        output_settings: settings.output.clone(),
         is_stopped: Arc::new(AtomicBool::from(false)),    // todo: false by default?
         theme: settings.themes[0].clone(),
+        transformer: Arc::new(Mutex::new(transformer))
     };
     viz_runner.start();
 

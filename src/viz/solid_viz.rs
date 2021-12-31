@@ -27,7 +27,7 @@ impl Viz for SolidViz {
         &self.config.pretty_name
     }
 
-    fn update(&mut self) -> Vec<PixelViz> {
+    fn update(&mut self, input: &Vec<f32>) -> Vec<PixelViz> {
         vec![
             PixelViz::default();
             self.total_pixels

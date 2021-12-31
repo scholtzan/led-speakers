@@ -8,13 +8,14 @@ use crate::led::Led;
 use crate::settings::OutputSettings;
 use crate::theme::Theme;
 use std::time;
+use crate::transform::AudioTransformer;
 
 
 #[typetag::serde]
 pub trait Viz: DynClone + Sync + Send {
     fn get_name(&self) -> &str;
     fn get_pretty_name(&self) -> &str;
-    fn update(&mut self) -> Vec<PixelViz>;
+    fn update(&mut self, input: &Vec<f32>) -> Vec<PixelViz>;
     fn set_total_pixels(&mut self, pixels: usize);
 }
 
@@ -45,9 +46,10 @@ impl Default for PixelViz {
 pub struct VizRunner {
     pub viz_left: Arc<Mutex<Box<dyn Viz>>>,
     pub viz_right: Arc<Mutex<Box<dyn Viz>>>,
-    pub output: OutputSettings,
+    pub output_settings: OutputSettings,
     pub is_stopped: Arc<AtomicBool>,
     pub theme: Theme,
+    pub transformer: Arc<Mutex<AudioTransformer>>,
 }
 
 impl VizRunner {
@@ -55,16 +57,17 @@ impl VizRunner {
         let stopped = self.is_stopped.clone();
         let left_viz = Arc::clone(&self.viz_left);
         let right_viz = Arc::clone(&self.viz_right);
-        let output = self.output.clone();
+        let output = self.output_settings.clone();
         let colors = self.theme.colors.clone();
+        let transformer = Arc::clone(&self.transformer);
 
         let handle = thread::spawn(move || {
             let mut left_output = output.left.to_led();
             let mut right_output = output.right.to_led();
 
             while !stopped.load(Ordering::Relaxed) {
-                let left_pixel_viz = left_viz.lock().unwrap().update();
-                let right_pixel_viz = right_viz.lock().unwrap().update();
+                let left_pixel_viz = left_viz.lock().unwrap().update(&transformer.lock().unwrap().left_bands.lock().unwrap());
+                let right_pixel_viz = right_viz.lock().unwrap().update(&transformer.lock().unwrap().right_bands.lock().unwrap());
 
                 for (i, pixel_viz) in left_pixel_viz.iter().enumerate() {
                     let color = colors[pixel_viz.color_index % colors.len()];
@@ -90,7 +93,6 @@ impl VizRunner {
 
                 left_output.show();
                 right_output.show();
-                thread::sleep(time::Duration::from_micros(500));
             }
         });
     }

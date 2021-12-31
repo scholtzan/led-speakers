@@ -48,8 +48,8 @@ pub struct AudioTransformer {
     monstercat: f32,
     decay: f32,
     killed: Arc<AtomicBool>,
-    left_bands: Arc<Mutex<Vec<f32>>>,
-    right_bands: Arc<Mutex<Vec<f32>>>,
+    pub left_bands: Arc<Mutex<Vec<f32>>>,
+    pub right_bands: Arc<Mutex<Vec<f32>>>,
 }
 
 
@@ -72,8 +72,8 @@ impl AudioTransformer {
             monstercat,
             decay,
             killed: Arc::new(AtomicBool::from(false)),
-            left_bands: Arc::new(Mutex::new(Vec::new())),
-            right_bands: Arc::new(Mutex::new(Vec::new())),
+            left_bands: Arc::new(Mutex::new(vec![0.0; total_bands])),
+            right_bands: Arc::new(Mutex::new(vec![0.0; total_bands])),
         };
 
         transformer

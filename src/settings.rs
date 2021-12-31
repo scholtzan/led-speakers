@@ -2,7 +2,7 @@ use serde::{Deserialize, Deserializer, Serialize};
 use serde::de::Error;
 use serde_json::Value;
 
-use crate::viz::{Viz, RotatingViz, SparkleViz, RotatingVizConfig, SparkleVizConfig, SolidViz, SolidVizConfig};
+use crate::viz::{Viz, CenterViz, CenterVizConfig, RotatingViz, SparkleViz, RotatingVizConfig, SparkleVizConfig, SolidViz, SolidVizConfig};
 use crate::theme::Theme;
 use crate::led::Led;
 
@@ -59,6 +59,10 @@ fn parse_visualizations<'de, D>(d: D) -> Result<Vec<Box<dyn Viz>>, D::Error> whe
             "solid_viz" => {
                 let viz_config: SolidVizConfig = serde_json::from_value(args.clone()).unwrap();
                 Ok(Box::new(SolidViz::new(viz_config)))
+            },
+            "center_viz" => {
+                let viz_config: CenterVizConfig = serde_json::from_value(args.clone()).unwrap();
+                Ok(Box::new(CenterViz::new(viz_config)))
             },
             _ => {
                 Err(D::Error::custom(format!("Unknown {:?}", name.as_str())))
