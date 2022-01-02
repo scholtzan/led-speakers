@@ -6,7 +6,7 @@ use pulse::error::PAErr;
 use pulse::mainloop::api::Mainloop as MainloopTrait;
 use pulse::mainloop::threaded::Mainloop;
 use pulse::proplist::Proplist;
-use pulse::sample::{Format, Spec};
+use pulse::sample::Spec;
 use pulse::stream::{PeekResult, Stream};
 use std::borrow::Cow;
 use std::cell::RefCell;
@@ -46,7 +46,7 @@ pub struct AudioSource {
 impl AudioSource {
     /// Create a new `AudioSource` instane based on the PulseAudio source info.
     fn from_pa_source_info(source_info: &SourceInfo) -> AudioSource {
-        /// get the audio source name
+        // get the audio source name
         let name = match &source_info.name {
             None => String::from("Unnamed audio source"),
             Some(Cow::Borrowed(inner_name)) => String::from(*inner_name),
@@ -94,6 +94,15 @@ pub struct AudioStream {
     /// Whether audio stream has been stopped
     killed: Arc<AtomicBool>,
 
+    /// How many times to try to write to buffer
+    buffer_write_retries: i32,
+
+    /// Minimum number of bytes to write to audio buffer at once
+    buffer_write_threshold: usize,
+
+    /// Size of the audio buffer in bytes
+    buffer_size: usize,
+
     /// Buffer audio data is written into
     pub buffer: Option<Arc<Buffer>>,
 
@@ -108,11 +117,15 @@ impl AudioStream {
     ///
     /// * `name`: identifier for the created audio stream
     /// * `sink_name`: name of the audio sink to connect to
-    pub fn new(name: String, sink_name: String) -> AudioStream {
+    /// * `buffer_size`: size of the audio buffer
+    pub fn new(name: String, sink_name: String, buffer_size: usize) -> AudioStream {
         let mut audio_stream = AudioStream {
             name: name.clone(),
             sink_name: sink_name.clone(),
             killed: Arc::new(AtomicBool::from(false)),
+            buffer_write_retries: 100,
+            buffer_write_threshold: 128,
+            buffer_size,
             handle: None,
             buffer: None,
             rate: Arc::new(Mutex::new(0)),
@@ -185,11 +198,13 @@ impl AudioStream {
     fn start(&mut self) -> Result<Arc<Buffer>, String> {
         // members that need to be made available in thread
         let weak_killed: Weak<AtomicBool> = Arc::downgrade(&self.killed);
-        let buffer = Arc::new(Buffer::new(30000)); // todo: configurable and make member
+        let buffer = Arc::new(Buffer::new(self.buffer_size));
         let buf = buffer.clone();
         let rate = Arc::clone(&self.rate);
         let name = self.name.clone();
         let sink_name = self.sink_name.clone();
+        let buffer_write_retries = self.buffer_write_retries;
+        let buffer_write_threshold = self.buffer_write_threshold;
 
         self.handle = Some(thread::spawn(move || {
             let (mainloop, context) = Self::init(name);
@@ -221,8 +236,7 @@ impl AudioStream {
 
                     // wait until byte threshold is reached
                     if let Some(count) = available {
-                        if count < 128 {
-                            // todo: make configurable
+                        if count < buffer_write_threshold {
                             thread::sleep(time::Duration::from_micros(200));
                             continue;
                         }
@@ -245,18 +259,15 @@ impl AudioStream {
                         }
                         PeekResult::Data(data) => {
                             let read = data.len();
-                            let mut s: i32 = 100; // todo: make configurable
-
                             // try writing data to the buffer
                             // if buffer is full; retry in next iteration
-                            while s > 0 {
+                            for _retry in 0..buffer_write_retries {
                                 // check if there is enough space left in the buffer
                                 let buffer_avail = buf.reserve(data.len());
                                 if buffer_avail > data.len() {
                                     buf.write(data);
                                     written = data.len();
                                 }
-                                s -= 1;
 
                                 // done writing all the available data
                                 if written >= read {
@@ -329,6 +340,7 @@ impl AudioStream {
                                     "".to_string()
                                 };
 
+                                eprintln!("Connected to audio source:");
                                 eprintln!("index: {}", source_info.index);
                                 eprintln!("name: {}", n);
                                 eprintln!("description: {}", description);
@@ -405,18 +417,16 @@ impl AudioStream {
                 })));
         }
 
-        {
-            // connect stream to the configured source
-            stream
-                .lock()
-                .unwrap()
-                .connect_record(
-                    Some(source_name.as_str()),
-                    None,
-                    pulse::stream::FlagSet::START_UNMUTED & pulse::stream::FlagSet::START_CORKED,
-                )
-                .expect("Could not connect stream");
-        }
+        // connect stream to the configured source
+        stream
+            .lock()
+            .unwrap()
+            .connect_record(
+                Some(source_name.as_str()),
+                None,
+                pulse::stream::FlagSet::START_UNMUTED & pulse::stream::FlagSet::START_CORKED,
+            )
+            .expect("Could not connect stream");
 
         // wait until stream has been successfully connected
         let state_closure = || State::Stream(stream.clone().try_lock().unwrap().get_state());
@@ -444,7 +454,7 @@ impl AudioStream {
     }
 
     /// Checks if the provided state is `Ready`.
-    fn is_ready(mainloop: &Rc<RefCell<Mainloop>>, state_closure: &Fn() -> State) -> bool {
+    fn is_ready(mainloop: &Rc<RefCell<Mainloop>>, state_closure: &dyn Fn() -> State) -> bool {
         loop {
             let mainloop = &mainloop;
             // check fi the stream of context are ready

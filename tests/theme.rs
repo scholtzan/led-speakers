@@ -14,8 +14,24 @@ fn theme_from_json() {
     let theme: Theme = serde_json::from_str(theme_json).unwrap();
 
     assert_eq!(theme.name, "test");
-    assert_eq!(theme.colors[0], Color {r: 0, g: 0, b: 255, a: 1});
-    assert_eq!(theme.colors[1], Color{r: 1, g: 1, b: 1, a: 1});
+    assert_eq!(
+        theme.colors[0],
+        Color {
+            r: 0,
+            g: 0,
+            b: 255,
+            a: 1
+        }
+    );
+    assert_eq!(
+        theme.colors[1],
+        Color {
+            r: 1,
+            g: 1,
+            b: 1,
+            a: 1
+        }
+    );
 }
 
 #[test]

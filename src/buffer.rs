@@ -2,7 +2,6 @@ use bytes::buf::BufMut;
 use bytes::{Bytes, BytesMut};
 use std::sync::{Arc, Mutex};
 
-
 #[derive(Clone)]
 pub struct Buffer {
     buffer: Arc<Mutex<BytesMut>>,
@@ -12,7 +11,7 @@ impl Buffer {
     pub fn new(size: usize) -> Buffer {
         let buffer = BytesMut::with_capacity(size);
         Buffer {
-            buffer: Arc::new(Mutex::new(buffer))
+            buffer: Arc::new(Mutex::new(buffer)),
         }
     }
 

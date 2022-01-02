@@ -1,10 +1,10 @@
 use serde::{Deserialize, Serialize};
-use std::sync::{Arc, Mutex, Weak};
 use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::{Arc, Mutex, Weak};
 
-use crate::viz::Viz;
 use crate::led::Led;
 use crate::viz::PixelViz;
+use crate::viz::Viz;
 
 #[derive(Serialize, Deserialize, Debug, PartialEq, Clone)]
 pub struct SolidVizConfig {
@@ -28,10 +28,7 @@ impl Viz for SolidViz {
     }
 
     fn update(&mut self, input: &Vec<f32>) -> Vec<PixelViz> {
-        vec![
-            PixelViz::default();
-            self.total_pixels
-        ]
+        vec![PixelViz::default(); self.total_pixels]
     }
 
     fn set_total_pixels(&mut self, pixels: usize) {
@@ -46,7 +43,7 @@ impl SolidViz {
     pub fn new(config: SolidVizConfig) -> Self {
         SolidViz {
             config,
-            total_pixels: 0
+            total_pixels: 0,
         }
     }
 }

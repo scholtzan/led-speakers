@@ -1,10 +1,10 @@
 use serde::{Deserialize, Serialize};
-use std::sync::{Arc, Mutex, Weak};
 use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::{Arc, Mutex, Weak};
 
 use crate::led::Led;
-use crate::viz::Viz;
 use crate::viz::PixelViz;
+use crate::viz::Viz;
 
 #[derive(Serialize, Deserialize, Debug, PartialEq, Clone)]
 pub struct CenterVizConfig {
@@ -30,10 +30,7 @@ impl Viz for CenterViz {
     fn update(&mut self, input: &Vec<f32>) -> Vec<PixelViz> {
         let total_bands = input.len();
         let pixels_per_band: usize = (self.total_pixels / 2) / total_bands;
-        let mut pixels = vec![
-            PixelViz::default();
-            self.total_pixels
-        ];
+        let mut pixels = vec![PixelViz::default(); self.total_pixels];
 
         let mut pixel_index = 0;
         for (band_index, band) in input.iter().enumerate() {
@@ -76,7 +73,7 @@ impl CenterViz {
     pub fn new(config: CenterVizConfig) -> Self {
         CenterViz {
             config,
-            total_pixels: 0
+            total_pixels: 0,
         }
     }
 }

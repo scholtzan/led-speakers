@@ -1,15 +1,14 @@
+use dyn_clone::DynClone;
+use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::{Arc, Mutex, Weak};
 use std::thread;
 use std::thread::JoinHandle;
-use std::sync::{Arc, Mutex, Weak};
-use std::sync::atomic::{AtomicBool, Ordering};
-use dyn_clone::DynClone;
 
 use crate::led::Led;
 use crate::settings::OutputSettings;
 use crate::theme::Theme;
-use std::time;
 use crate::transform::AudioTransformer;
-
+use std::time;
 
 #[typetag::serde]
 pub trait Viz: DynClone + Sync + Send {
@@ -22,10 +21,10 @@ pub trait Viz: DynClone + Sync + Send {
 #[derive(Clone)]
 pub struct PixelViz {
     pub color_index: usize,  // index of the theme color
-    pub brightness_mul: f32,  // brightness multiplier
-    pub red_mul: f32,         // multiplier applied to red
-    pub green_mul: f32,       // multiplier applied to green
-    pub blue_mul: f32,        // multiplier applied to blue   
+    pub brightness_mul: f32, // brightness multiplier
+    pub red_mul: f32,        // multiplier applied to red
+    pub green_mul: f32,      // multiplier applied to green
+    pub blue_mul: f32,       // multiplier applied to blue
 }
 
 impl Default for PixelViz {
@@ -35,11 +34,10 @@ impl Default for PixelViz {
             brightness_mul: 1.0,
             red_mul: 1.0,
             green_mul: 1.0,
-            blue_mul: 1.0
+            blue_mul: 1.0,
         }
     }
 }
-
 
 // todo: move threading into viz runner
 // todo: move start stop into viz runner
@@ -66,13 +64,19 @@ impl VizRunner {
             let mut right_output = output.right.to_led();
 
             while !stopped.load(Ordering::Relaxed) {
-                let left_pixel_viz = left_viz.lock().unwrap().update(&transformer.lock().unwrap().left_bands.lock().unwrap());
-                let right_pixel_viz = right_viz.lock().unwrap().update(&transformer.lock().unwrap().right_bands.lock().unwrap());
+                let left_pixel_viz = left_viz
+                    .lock()
+                    .unwrap()
+                    .update(&transformer.lock().unwrap().left_bands.lock().unwrap());
+                let right_pixel_viz = right_viz
+                    .lock()
+                    .unwrap()
+                    .update(&transformer.lock().unwrap().right_bands.lock().unwrap());
 
                 for (i, pixel_viz) in left_pixel_viz.iter().enumerate() {
                     let color = colors[pixel_viz.color_index % colors.len()];
                     left_output.set_pixel(
-                        i, 
+                        i,
                         ((color.r as f32) * pixel_viz.red_mul) as u8,
                         ((color.g as f32) * pixel_viz.green_mul) as u8,
                         ((color.b as f32) * pixel_viz.blue_mul) as u8,
@@ -83,7 +87,7 @@ impl VizRunner {
                 for (i, pixel_viz) in right_pixel_viz.iter().enumerate() {
                     let color = colors[pixel_viz.color_index % colors.len()];
                     right_output.set_pixel(
-                        i, 
+                        i,
                         ((color.r as f32) * pixel_viz.red_mul) as u8,
                         ((color.g as f32) * pixel_viz.green_mul) as u8,
                         ((color.b as f32) * pixel_viz.blue_mul) as u8,
@@ -105,4 +109,3 @@ impl VizRunner {
         self.theme = theme;
     }
 }
-

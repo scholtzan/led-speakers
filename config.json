@@ -52,5 +52,6 @@
     "lower_cutoff": 50.0,
     "upper_cutoff": 10000.0,
     "monstercat": 100.0,
-    "decay": 100.0
+    "decay": 100.0,
+    "buffer_size": 30000
 }

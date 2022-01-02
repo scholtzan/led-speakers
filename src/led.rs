@@ -32,7 +32,11 @@ impl Led {
     }
 
     pub fn show(&mut self) {
-        let rgb_values = self.pixels.iter().map(|p: &Pixel| (p.red, p.green, p.blue)).collect::<Vec<_>>();
+        let rgb_values = self
+            .pixels
+            .iter()
+            .map(|p: &Pixel| (p.red, p.green, p.blue))
+            .collect::<Vec<_>>();
         // for (i, led) in leds.iter_mut().enumerate() {
         //     let pixel = &self.pixels[i];
         //     // eprintln!("{:?} {:?} {:?} {:?}", pixel.blue, pixel.green, pixel.red, pixel.brightness);
@@ -48,7 +52,7 @@ pub struct Pixel {
     pub red: u8,
     pub green: u8,
     pub blue: u8,
-    pub brightness: u8
+    pub brightness: u8,
 }
 
 impl Pixel {
@@ -73,7 +77,7 @@ impl Default for Pixel {
             red: 0,
             green: 0,
             blue: 0,
-            brightness: 0
+            brightness: 0,
         }
     }
 }

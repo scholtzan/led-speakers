@@ -1,10 +1,10 @@
 use serde::{Deserialize, Serialize};
-use std::sync::{Arc, Mutex, Weak};
 use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::{Arc, Mutex, Weak};
 
 use crate::led::Led;
-use crate::viz::Viz;
 use crate::viz::PixelViz;
+use crate::viz::Viz;
 
 #[derive(Serialize, Deserialize, Debug, PartialEq, Clone)]
 pub struct SparkleVizConfig {
@@ -43,7 +43,7 @@ impl SparkleViz {
     pub fn new(config: SparkleVizConfig) -> Self {
         SparkleViz {
             config,
-            total_pixels: 0
+            total_pixels: 0,
         }
     }
 }

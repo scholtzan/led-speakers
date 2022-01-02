@@ -1,9 +1,9 @@
 use serde::{Deserialize, Serialize};
-use std::sync::{Arc, Mutex, Weak};
 use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::{Arc, Mutex, Weak};
 
-use crate::viz::Viz;
 use crate::viz::PixelViz;
+use crate::viz::Viz;
 
 #[derive(Serialize, Deserialize, Debug, PartialEq, Clone)]
 pub struct RotatingVizConfig {
@@ -42,7 +42,7 @@ impl RotatingViz {
     pub fn new(config: RotatingVizConfig) -> Self {
         RotatingViz {
             config,
-            total_pixels: 0
+            total_pixels: 0,
         }
     }
 }
