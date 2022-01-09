@@ -21,17 +21,24 @@ pub trait Viz: DynClone + Sync + Send {
 #[derive(Clone)]
 pub struct PixelViz {
     pub color_index: usize,  // index of the theme color
-    pub brightness_mul: f32, // brightness multiplier
     pub red_mul: f32,        // multiplier applied to red
     pub green_mul: f32,      // multiplier applied to green
     pub blue_mul: f32,       // multiplier applied to blue
+}
+
+impl PixelViz {
+    /// Turns off the pixel in the viz.
+    pub fn off(&mut self) {
+        self.red_mul = 0.0;
+        self.blue_mul = 0.0;
+        self.green_mul = 0.0;
+    }
 }
 
 impl Default for PixelViz {
     fn default() -> PixelViz {
         PixelViz {
             color_index: 0,
-            brightness_mul: 1.0,
             red_mul: 1.0,
             green_mul: 1.0,
             blue_mul: 1.0,
@@ -39,8 +46,7 @@ impl Default for PixelViz {
     }
 }
 
-// todo: move threading into viz runner
-// todo: move start stop into viz runner
+
 pub struct VizRunner {
     pub viz_left: Arc<Mutex<Box<dyn Viz>>>,
     pub viz_right: Arc<Mutex<Box<dyn Viz>>>,
@@ -80,7 +86,6 @@ impl VizRunner {
                         ((color.r as f32) * pixel_viz.red_mul) as u8,
                         ((color.g as f32) * pixel_viz.green_mul) as u8,
                         ((color.b as f32) * pixel_viz.blue_mul) as u8,
-                        ((color.a as f32) * pixel_viz.brightness_mul) as u8,
                     )
                 }
 
@@ -91,7 +96,6 @@ impl VizRunner {
                         ((color.r as f32) * pixel_viz.red_mul) as u8,
                         ((color.g as f32) * pixel_viz.green_mul) as u8,
                         ((color.b as f32) * pixel_viz.blue_mul) as u8,
-                        ((color.a as f32) * pixel_viz.brightness_mul) as u8,
                     )
                 }
 

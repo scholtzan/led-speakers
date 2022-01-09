@@ -41,21 +41,12 @@ impl Viz for CenterViz {
                 pixels[(self.total_pixels / 2) - pixel_index - i].color_index = band_index;
             }
 
-            pixel_index += intensity + 1;
+            pixel_index += intensity;
         }
 
         for i in pixel_index..((self.total_pixels / 2) - 1) {
-            // todo: PixelViz::off
-            pixels[(self.total_pixels / 2) + i].color_index = 0;
-            pixels[(self.total_pixels / 2) - i].color_index = 0;
-            pixels[(self.total_pixels / 2) + i].red_mul = 0.0;
-            pixels[(self.total_pixels / 2) - i].red_mul = 0.0;
-            pixels[(self.total_pixels / 2) + i].green_mul = 0.0;
-            pixels[(self.total_pixels / 2) - i].green_mul = 0.0;
-            pixels[(self.total_pixels / 2) + i].blue_mul = 0.0;
-            pixels[(self.total_pixels / 2) - i].blue_mul = 0.0;
-            pixels[(self.total_pixels / 2) + i].brightness_mul = 0.0;
-            pixels[(self.total_pixels / 2) - i].brightness_mul = 0.0;
+            pixels[(self.total_pixels / 2) + i].off();
+            pixels[(self.total_pixels / 2) - i].off();
         }
 
         pixels

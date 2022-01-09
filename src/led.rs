@@ -29,11 +29,11 @@ impl Led {
     /// # Example
     /// ```
     /// let mut led = Led::new(150, "/dev/spidev0.0".to_string());
-    /// led.set_pixel(255, 0, 0, 255);
+    /// led.set_pixel(255, 0, 0);
     /// ```
-    pub fn set_pixel(&mut self, pixel: usize, red: u8, green: u8, blue: u8, brightness: u8) {
+    pub fn set_pixel(&mut self, pixel: usize, red: u8, green: u8, blue: u8) {
         if let Some(pixel) = self.pixels.get_mut(pixel) {
-            pixel.set_rgba(red, green, blue, brightness);
+            pixel.set_rgba(red, green, blue);
         }
     }
 
@@ -42,11 +42,11 @@ impl Led {
     /// # Example
     /// ```
     /// let mut led = Led::new(150, "/dev/spidev0.0".to_string());
-    /// led.set_all_pixels(255, 0, 0, 255);
+    /// led.set_all_pixels(255, 0, 0);
     /// ```
-    pub fn set_all_pixels(&mut self, red: u8, green: u8, blue: u8, brightness: u8) {
+    pub fn set_all_pixels(&mut self, red: u8, green: u8, blue: u8) {
         for pixel in &mut self.pixels {
-            pixel.set_rgba(red, green, blue, brightness);
+            pixel.set_rgba(red, green, blue);
         }
     }
 
@@ -58,7 +58,7 @@ impl Led {
     /// led.clear();
     /// ```
     pub fn clear(&mut self) {
-        self.set_all_pixels(0, 0, 0, 0);
+        self.set_all_pixels(0, 0, 0);
     }
 
     /// Updates pixel values and apply to LEDs of LED strip.
@@ -84,27 +84,24 @@ pub struct Pixel {
     pub red: u8,
     pub green: u8,
     pub blue: u8,
-    pub brightness: u8,
 }
 
 impl Pixel {
-    /// Sets the RGB and brightness value of the LED pixel.
+    /// Sets the RGB value of the LED pixel.
     ///
     /// # Examples
     /// ```
     /// let mut pixel = Pixel {
     ///     red: 255,
     ///     blue: 255,
-    ///     green: 0,
-    ///     brightness: 50
+    ///     green: 0
     /// };
-    /// led.set_rgba(255, 255, 255, 255);
+    /// led.set_rgba(255, 255, 255);
     /// ```
-    fn set_rgba(&mut self, red: u8, green: u8, blue: u8, brightness: u8) {
+    fn set_rgba(&mut self, red: u8, green: u8, blue: u8) {
         self.red = red;
         self.green = green;
         self.blue = blue;
-        self.brightness = brightness;
     }
 
     /// Turns off the LED pixel.
@@ -115,7 +112,6 @@ impl Pixel {
     ///     red: 255,
     ///     blue: 255,
     ///     green: 0,
-    ///     brightness: 50
     /// };
     /// led.clear();
     /// ```
@@ -123,7 +119,6 @@ impl Pixel {
         self.red = 0;
         self.green = 0;
         self.blue = 0;
-        self.brightness = 0;
     }
 }
 
@@ -134,7 +129,6 @@ impl Default for Pixel {
             red: 0,
             green: 0,
             blue: 0,
-            brightness: 0,
         }
     }
 }
