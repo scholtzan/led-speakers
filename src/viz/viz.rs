@@ -11,23 +11,39 @@ use crate::transform::AudioTransformer;
 use std::time;
 
 #[typetag::serde]
+/// Abstract type implemented by all visualizations.
 pub trait Viz: DynClone + Sync + Send {
+    /// Returns the unique identifier of the visualization.
     fn get_name(&self) -> &str;
+
+    /// Returns a descriptive visualization name.
     fn get_pretty_name(&self) -> &str;
+
+    /// Updates the visualization state based on the provided input.
     fn update(&mut self, input: &Vec<f32>) -> Vec<PixelViz>;
+
+    /// Sets the number of total available pizels.
     fn set_total_pixels(&mut self, pixels: usize);
 }
 
 #[derive(Clone)]
+/// Represents the visualization state of an LED pixel.
 pub struct PixelViz {
-    pub color_index: usize,  // index of the theme color
-    pub red_mul: f32,        // multiplier applied to red
-    pub green_mul: f32,      // multiplier applied to green
-    pub blue_mul: f32,       // multiplier applied to blue
+    /// Index of the theme color to use
+    pub color_index: usize,
+
+    /// Multiplier applied to red
+    pub red_mul: f32,
+
+    // Multiplier applied to green
+    pub green_mul: f32,
+
+    /// Multiplier applied to blue
+    pub blue_mul: f32,
 }
 
 impl PixelViz {
-    /// Turns off the pixel in the viz.
+    /// Turns off the pixel in the visualization.
     pub fn off(&mut self) {
         self.red_mul = 0.0;
         self.blue_mul = 0.0;
@@ -36,6 +52,7 @@ impl PixelViz {
 }
 
 impl Default for PixelViz {
+    /// Creates a default `PixelViz` instance
     fn default() -> PixelViz {
         PixelViz {
             color_index: 0,
@@ -46,18 +63,30 @@ impl Default for PixelViz {
     }
 }
 
-
+/// Executes and updates the visualization for all output channels.
 pub struct VizRunner {
+    /// Left visualization
     pub viz_left: Arc<Mutex<Box<dyn Viz>>>,
+
+    /// Right visualization
     pub viz_right: Arc<Mutex<Box<dyn Viz>>>,
+
+    /// Output settings
     pub output_settings: OutputSettings,
+
+    /// Whether the visualization is running and is getting updated
     pub is_stopped: Arc<AtomicBool>,
+
+    /// Theme to use in visualization
     pub theme: Theme,
+
+    /// Audio transformer; used for visualization input
     pub transformer: Arc<Mutex<AudioTransformer>>,
 }
 
 impl VizRunner {
     pub fn start(&self) {
+        // make values available in thread
         let stopped = self.is_stopped.clone();
         let left_viz = Arc::clone(&self.viz_left);
         let right_viz = Arc::clone(&self.viz_right);
@@ -66,10 +95,12 @@ impl VizRunner {
         let transformer = Arc::clone(&self.transformer);
 
         let handle = thread::spawn(move || {
+            // init outputs from settings
             let mut left_output = output.left.to_led();
             let mut right_output = output.right.to_led();
 
             while !stopped.load(Ordering::Relaxed) {
+                // update visualizations for left and right channel
                 let left_pixel_viz = left_viz
                     .lock()
                     .unwrap()
@@ -79,6 +110,7 @@ impl VizRunner {
                     .unwrap()
                     .update(&transformer.lock().unwrap().right_bands.lock().unwrap());
 
+                // show pixel visualizations and apply multipliers
                 for (i, pixel_viz) in left_pixel_viz.iter().enumerate() {
                     let color = colors[pixel_viz.color_index % colors.len()];
                     left_output.set_pixel(
@@ -105,10 +137,12 @@ impl VizRunner {
         });
     }
 
+    /// Stops the visualization from updating and running.
     pub fn stop(&mut self) {
         self.is_stopped = Arc::new(AtomicBool::from(false));
     }
 
+    /// Sets the provided theme for the visualization.
     pub fn set_theme(&mut self, theme: Theme) {
         self.theme = theme;
     }

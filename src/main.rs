@@ -23,9 +23,10 @@ use crate::viz::VizRunner;
 #[macro_use]
 extern crate dotenv_codegen;
 
-const ASSETS_DIR: &str = "../web/dist/spa"; // todo
+const ASSETS_DIR: &str = "../web/dist/spa";
 const CONFIG: &str = "config.json";
 
+/// Serves the index.html file
 async fn serve_index_file() -> Result<actix_files::NamedFile, Error> {
     Ok(
         actix_files::NamedFile::open(format!("{}/index.html", ASSETS_DIR))?
@@ -33,6 +34,7 @@ async fn serve_index_file() -> Result<actix_files::NamedFile, Error> {
     )
 }
 
+/// Initializes available routes
 pub fn init(cfg: &mut web::ServiceConfig) {
     cfg.service(get_viz);
     cfg.service(get_themes);
@@ -42,40 +44,41 @@ pub fn init(cfg: &mut web::ServiceConfig) {
 
 #[get("/api/vizualization")]
 async fn get_viz() -> impl Responder {
-    // HttpResponse::Ok().json(tags)
     HttpResponse::Ok().json("Todo: get viz")
 }
 
 #[get("/api/theme")]
 async fn get_themes() -> impl Responder {
-    // HttpResponse::Ok().json(tags)
     HttpResponse::Ok().json("Todo: get themes")
 }
 
 #[get("/api/type")]
 async fn get_viz_types() -> impl Responder {
-    // HttpResponse::Ok().json(tags)
     HttpResponse::Ok().json("Todo: get viz types")
 }
 
 #[post("/api/viz")]
-async fn set_viz(// viz: web::Json<VizualizationRequest>,
-) -> impl Responder {
+async fn set_viz() -> impl Responder {
     HttpResponse::Ok().json("Todo: update viz")
 }
 
+/// Shared web server state
 struct AppState {
     vizualization: Mutex<VizRunner>,
 }
 
 #[actix_rt::main]
 async fn main() -> Result<()> {
+    // read environment variables
     dotenv().ok();
 
+    // read settings from config.json
     let mut conf = config::Config::default();
     conf.merge(config::File::with_name(CONFIG)).unwrap();
     let settings: Settings = conf.try_into().unwrap();
 
+    // new audio transformer instance from settings
+    // has access to audio stream
     let mut transformer = AudioTransformer::new(
         settings.sink,
         settings.fft_len,
@@ -88,6 +91,7 @@ async fn main() -> Result<()> {
     );
     transformer.start();
 
+    // instantiate visualization
     let mut viz_left = dyn_clone::clone_box(
         &*settings
             .vizualizations
@@ -99,20 +103,23 @@ async fn main() -> Result<()> {
     let mut viz_right = dyn_clone::clone_box(&*viz_left);
     viz_right.set_total_pixels(settings.output.right.total_leds as usize);
 
+    // viz runner will update the visualization periodically
     let viz_runner = VizRunner {
         viz_left: Arc::new(Mutex::new(viz_left)),
         viz_right: Arc::new(Mutex::new(viz_right)),
         output_settings: settings.output.clone(),
-        is_stopped: Arc::new(AtomicBool::from(false)), // todo: false by default?
+        is_stopped: Arc::new(AtomicBool::from(false)),
         theme: settings.themes[0].clone(),
         transformer: Arc::new(Mutex::new(transformer)),
     };
     viz_runner.start();
 
+    // instantiate shared state for web server
     let app_state = web::Data::new(AppState {
         vizualization: Mutex::new(viz_runner),
     });
 
+    // initialize and start web server
     HttpServer::new(move || {
         App::new()
             .wrap(
