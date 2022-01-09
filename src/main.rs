@@ -99,7 +99,6 @@ async fn main() -> Result<()> {
     let mut viz_right = dyn_clone::clone_box(&*viz_left);
     viz_right.set_total_pixels(settings.output.right.total_leds as usize);
 
-    eprintln!("start viz");
     let viz_runner = VizRunner {
         viz_left: Arc::new(Mutex::new(viz_left)),
         viz_right: Arc::new(Mutex::new(viz_right)),
