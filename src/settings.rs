@@ -11,14 +11,13 @@ use crate::viz::{
 
 #[derive(Serialize, Deserialize, Clone)]
 pub struct Output {
-    pub clock_speed_hz: u32,
     pub spi: String,
     pub total_leds: i32,
 }
 
 impl Output {
     pub fn to_led(&self) -> Led {
-        Led::new(self.total_leds, self.spi.clone(), self.clock_speed_hz)
+        Led::new(self.total_leds, self.spi.clone())
     }
 }
 

@@ -1,53 +1,85 @@
 use ws2818_rgb_led_spi_driver::adapter_gen::WS28xxAdapter;
 use ws2818_rgb_led_spi_driver::adapter_spi::WS28xxSpiAdapter;
-use ws2818_rgb_led_spi_driver::encoding::encode_rgb;
 
+/// Representation of an LED strip.
 pub struct Led {
+    /// Individual LEDs on the strip
     pixels: Vec<Pixel>,
+
+    /// LED strip controller (default: SPI)
     controller: WS28xxSpiAdapter,
 }
 
 impl Led {
-    pub fn new(total_pixels: i32, spi: String, clock_speed_hz: u32) -> Self {
+    /// Creates a new `LED` instance.
+    ///
+    /// # Examples
+    /// ```
+    /// let led = Led::new(150, "/dev/spidev0.0".to_string());
+    /// ```
+    pub fn new(total_pixels: i32, spi: String) -> Self {
         Led {
             pixels: vec![Pixel::default(); total_pixels as usize],
             controller: WS28xxSpiAdapter::new(&spi).unwrap(),
         }
     }
 
+    /// Sets the color of a specific pixel.
+    ///
+    /// # Example
+    /// ```
+    /// let mut led = Led::new(150, "/dev/spidev0.0".to_string());
+    /// led.set_pixel(255, 0, 0, 255);
+    /// ```
     pub fn set_pixel(&mut self, pixel: usize, red: u8, green: u8, blue: u8, brightness: u8) {
         if let Some(pixel) = self.pixels.get_mut(pixel) {
             pixel.set_rgba(red, green, blue, brightness);
         }
     }
 
+    /// Sets all pixels to the specified color.
+    ///
+    /// # Example
+    /// ```
+    /// let mut led = Led::new(150, "/dev/spidev0.0".to_string());
+    /// led.set_all_pixels(255, 0, 0, 255);
+    /// ```
     pub fn set_all_pixels(&mut self, red: u8, green: u8, blue: u8, brightness: u8) {
         for pixel in &mut self.pixels {
             pixel.set_rgba(red, green, blue, brightness);
         }
     }
 
+    /// Turns off all pixels.
+    ///
+    /// # Example
+    /// ```
+    /// let mut led = Led::new(150, "/dev/spidev0.0".to_string());
+    /// led.clear();
+    /// ```
     pub fn clear(&mut self) {
         self.set_all_pixels(0, 0, 0, 0);
     }
 
+    /// Updates pixel values and apply to LEDs of LED strip.
+    ///
+    /// # Example
+    /// ```
+    /// let mut led = Led::new(150, "/dev/spidev0.0".to_string());
+    /// led.show();
+    /// ```
     pub fn show(&mut self) {
         let rgb_values = self
             .pixels
             .iter()
             .map(|p: &Pixel| (p.red, p.green, p.blue))
             .collect::<Vec<_>>();
-        // for (i, led) in leds.iter_mut().enumerate() {
-        //     let pixel = &self.pixels[i];
-        //     // eprintln!("{:?} {:?} {:?} {:?}", pixel.blue, pixel.green, pixel.red, pixel.brightness);
-        //     *led = [pixel.blue, pixel.green, pixel.red, pixel.brightness];
-        // }
-
         self.controller.write_rgb(&rgb_values).unwrap();
     }
 }
 
 #[derive(Clone)]
+/// Represents a single LED pixels of an LED strip.
 pub struct Pixel {
     pub red: u8,
     pub green: u8,
@@ -56,6 +88,18 @@ pub struct Pixel {
 }
 
 impl Pixel {
+    /// Sets the RGB and brightness value of the LED pixel.
+    ///
+    /// # Examples
+    /// ```
+    /// let mut pixel = Pixel {
+    ///     red: 255,
+    ///     blue: 255,
+    ///     green: 0,
+    ///     brightness: 50
+    /// };
+    /// led.set_rgba(255, 255, 255, 255);
+    /// ```
     fn set_rgba(&mut self, red: u8, green: u8, blue: u8, brightness: u8) {
         self.red = red;
         self.green = green;
@@ -63,6 +107,18 @@ impl Pixel {
         self.brightness = brightness;
     }
 
+    /// Turns off the LED pixel.
+    ///
+    /// # Examples
+    /// ```
+    /// let mut pixel = Pixel {
+    ///     red: 255,
+    ///     blue: 255,
+    ///     green: 0,
+    ///     brightness: 50
+    /// };
+    /// led.clear();
+    /// ```
     fn clear(&mut self) {
         self.red = 0;
         self.green = 0;
@@ -72,6 +128,7 @@ impl Pixel {
 }
 
 impl Default for Pixel {
+    /// Creates a new pixel instance which is turned off by default.
     fn default() -> Pixel {
         Pixel {
             red: 0,
