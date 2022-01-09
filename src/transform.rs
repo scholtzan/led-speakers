@@ -6,7 +6,6 @@ use bytes::BytesMut;
 use rustfft::num_complex::Complex;
 use rustfft::num_traits::Zero;
 use rustfft::FftPlanner;
-use std::cmp;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
 use std::thread;
@@ -34,7 +33,7 @@ impl TransformedAudio {
     /// Initializes a new transformed audio representation
     pub fn new(total_bands: usize, fft_len: usize) -> TransformedAudio {
         TransformedAudio {
-            band_max: vec![0.0; fft_len],
+            band_max: vec![0.0; fft_len], // reusing fft_len since buffer size should be larger for good moving average
             bands: vec![0.0; total_bands],
             band_peaks: vec![0.0; total_bands],
             falloff: vec![0.0; total_bands],
@@ -170,8 +169,6 @@ impl AudioTransformer {
             // input buffer for FFT
             let mut fft_input_buffer: Vec<i16> = vec![0; fft_len * 2];
 
-            let lin_fft_res = ((byte_rate / 2) as f64) / ((fft_len / 2) as f64);
-
             // factor used to normalize input samples
             let norm = 1.0 / (i16::max_value() as f32);
 
@@ -273,7 +270,10 @@ impl AudioTransformer {
     }
 
     /// Compute frequency bands and magnitudes.
-    /// todo: re-binning to log scale
+    ///
+    /// The sound spectrum is re-binned into log scale and a fewer number of bins.
+    /// This means that buckets of the FFT will be merged together.
+    ///
     fn frequency_magnitudes(
         input: Vec<f32>,
         transformed_audio: &mut TransformedAudio,
@@ -285,12 +285,39 @@ impl AudioTransformer {
         monstercat: f32,
         decay: f32,
     ) -> Vec<f32> {
+        // frequency magnitudes for each band
+        let mut bands: Vec<f32> = vec![0.0; total_bands];
+
+        let (lower_cutoff_freq, upper_cutoff_freq) =
+            Self::cutoff_frequencies(total_bands, lower_cutoff, upper_cutoff, rate, fft_len);
+        Self::magnitudes(
+            &mut bands,
+            input,
+            total_bands,
+            &lower_cutoff_freq,
+            &upper_cutoff_freq,
+        );
+        Self::smooth(&mut bands, total_bands, monstercat);
+        Self::scale(&mut bands, total_bands, transformed_audio, fft_len);
+        Self::falloff(&mut bands, total_bands, transformed_audio, decay);
+
+        return bands;
+    }
+
+    /// Compute lower and upper cutoff frequency indices.
+    ///
+    /// Indices will be used for determining which FFT buckets need to be merged for each band.
+    ///
+    fn cutoff_frequencies(
+        total_bands: usize,
+        lower_cutoff: f32,
+        upper_cutoff: f32,
+        rate: u32,
+        fft_len: usize,
+    ) -> (Vec<usize>, Vec<usize>) {
         // contains indices for each band indicating range of FFT buckets that need to be merged
         let mut lower_cutoff_freq: Vec<usize> = vec![0; total_bands];
         let mut upper_cutoff_freq: Vec<usize> = vec![0; total_bands];
-
-        // frequency magnitudes for each band
-        let mut bands: Vec<f32> = vec![0.0; total_bands];
 
         // this constant is used to distribute frequency bands into the different buckets;
         // using log scale for bucketing since it matches more closely perception of sound spectrum
@@ -318,7 +345,17 @@ impl AudioTransformer {
             }
         }
 
-        // compute frequency magnitures for each bands
+        (lower_cutoff_freq, upper_cutoff_freq)
+    }
+
+    /// Computes frequency magnitudes for each band.
+    fn magnitudes(
+        bands: &mut Vec<f32>,
+        input: Vec<f32>,
+        total_bands: usize,
+        lower_cutoff_freq: &Vec<usize>,
+        upper_cutoff_freq: &Vec<usize>,
+    ) {
         for n in 0..total_bands {
             let mut frequency_magnitude: f32 = 0.0;
             let mut cutoff_freq = lower_cutoff_freq[n];
@@ -336,12 +373,36 @@ impl AudioTransformer {
             bands[n] *= (2.0 + (n as f32)).log(2.0) * (100.0 / (total_bands as f32));
             bands[n] = bands[n].sqrt();
         }
+    }
 
-        // smoothing
-        Self::smooth(&mut bands, total_bands, monstercat);
+    /// Applies monstercat filter to smooth frequency magnitudes.
+    fn smooth(input: &mut Vec<f32>, total_bands: usize, monstercat: f32) {
+        for band in 0..total_bands {
+            // look at previous bands and adjust if they deviate too much from current frequency magnitude
+            for prev_band in (band - 1)..0 {
+                let de = (band - prev_band) as f32;
+                input[prev_band] = (input[band] / monstercat.powf(de)).max(input[prev_band]);
+            }
 
-        // scaling
+            // look at following bands and adjust if they deviate too much from current frequency magnitude
+            for following_band in (band + 1)..total_bands {
+                let de = (following_band - band) as f32;
+                input[following_band] =
+                    (input[band] / monstercat.powf(de)).max(input[following_band]);
+            }
+        }
+    }
 
+    /// Scales frequency magnitudes to values between 0 and 100.
+    ///
+    /// Frequency magnitudes are re-scaled based on previous maximum magnitude values.
+    ///
+    fn scale(
+        bands: &mut Vec<f32>,
+        total_bands: usize,
+        transformed_audio: &mut TransformedAudio,
+        fft_len: usize,
+    ) {
         // determine maximum frequency magnitude
         let mut max_magnitude: f32 = 0.0;
         for n in 0..total_bands {
@@ -356,7 +417,7 @@ impl AudioTransformer {
         let mut prev_max_magnitude = transformed_audio.band_max[0]; // todo: increase buffer size
         transformed_audio.band_max[0] = max_magnitude;
         for n in 0..(fft_len - 1) {
-            let mut tmp = transformed_audio.band_max[n + 1];
+            let tmp = transformed_audio.band_max[n + 1];
             transformed_audio.band_max[n + 1] = prev_max_magnitude;
             prev_max_magnitude = tmp;
         }
@@ -383,8 +444,15 @@ impl AudioTransformer {
         for n in 0..total_bands {
             bands[n] = ((bands[n] / max_freq) * 100.0 - 1.0).min(100.0 - 1.0);
         }
+    }
 
-        // falloff
+    /// Applies decay rate to frequency magnitudes.
+    fn falloff(
+        bands: &mut Vec<f32>,
+        total_bands: usize,
+        transformed_audio: &mut TransformedAudio,
+        decay: f32,
+    ) {
         for n in 0..total_bands {
             // apply a decay rate to each frequency magnitude
             if bands[n] < transformed_audio.bands[n] {
@@ -403,26 +471,6 @@ impl AudioTransformer {
             }
 
             transformed_audio.bands[n] = bands[n];
-        }
-
-        return bands;
-    }
-
-    /// Apply monstercat filter to smooth frequency magnitudes
-    fn smooth(input: &mut Vec<f32>, total_bands: usize, monstercat: f32) {
-        for band in 0..total_bands {
-            // look at previous bands and adjust if they deviate too much from current frequency magnitude
-            for prev_band in (band - 1)..0 {
-                let de = (band - prev_band) as f32;
-                input[prev_band] = (input[band] / monstercat.powf(de)).max(input[prev_band]);
-            }
-
-            // look at following bands and adjust if they deviate too much from current frequency magnitude
-            for following_band in (band + 1)..total_bands {
-                let de = (following_band - band) as f32;
-                input[following_band] =
-                    (input[band] / monstercat.powf(de)).max(input[following_band]);
-            }
         }
     }
 }
