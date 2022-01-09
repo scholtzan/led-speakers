@@ -78,7 +78,7 @@ async fn main() -> Result<()> {
 
     let mut transformer = AudioTransformer::new(
         settings.sink,
-        settings.bins,
+        settings.fft_len,
         settings.total_bands,
         settings.lower_cutoff,
         settings.upper_cutoff,

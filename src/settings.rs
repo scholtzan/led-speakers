@@ -35,7 +35,7 @@ pub struct Settings {
     pub output: OutputSettings,
     pub themes: Vec<Theme>,
     pub sink: String,
-    pub bins: usize,
+    pub fft_len: usize,
     pub total_bands: usize,
     pub lower_cutoff: f32,
     pub upper_cutoff: f32,
