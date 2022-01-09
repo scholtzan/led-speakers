@@ -118,6 +118,7 @@ impl AudioStream {
     /// * `name`: identifier for the created audio stream
     /// * `sink_name`: name of the audio sink to connect to
     /// * `buffer_size`: size of the audio buffer
+    ///
     pub fn new(name: String, sink_name: String, buffer_size: usize) -> AudioStream {
         let mut audio_stream = AudioStream {
             name: name.clone(),
@@ -148,6 +149,7 @@ impl AudioStream {
     ///
     /// Creates a PulseAudio main loop and context that will be used to
     /// communicate with PulseAudio.
+    ///
     fn init(name: String) -> (Rc<RefCell<Mainloop>>, Rc<RefCell<Context>>) {
         let mut proplist = Proplist::new().unwrap();
         proplist
@@ -195,6 +197,7 @@ impl AudioStream {
     ///
     /// A separate thread is created for periodically fetching new audio data and
     /// writing it into a buffer.
+    ///
     fn start(&mut self) -> Result<Arc<Buffer>, String> {
         // members that need to be made available in thread
         let weak_killed: Weak<AtomicBool> = Arc::downgrade(&self.killed);
