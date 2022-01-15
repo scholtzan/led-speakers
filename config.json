@@ -45,11 +45,11 @@
         }
     ],
     "sink": "alsa_output.usb-Generic_USB2.0_Device_20170726905959-00.analog-stereo",
-    "fft_len": 216,
-    "total_bands": 10,
+    "fft_len": 3000,
+    "total_bands": 6,
     "lower_cutoff": 50.0,
     "upper_cutoff": 10000.0,
     "monstercat": 50.0,
-    "decay": 100.0,
-    "buffer_size": 30000
+    "decay": 10.0,
+    "buffer_size": 65535
 }
