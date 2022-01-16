@@ -32,19 +32,28 @@ impl Viz for CenterViz {
         let pixels_per_band: usize = (self.total_pixels / 2) / total_bands;
         let mut pixels = vec![PixelViz::default(); self.total_pixels];
 
+        let mut overall_intensity = 0;
+        for (band_index, band) in input.iter().enumerate() {
+            let intensity = ((band / 100.0) * (pixels_per_band as f32)) as usize;
+            overall_intensity += intensity;
+        }
+        let mut unused_pixels = self.total_pixels / 2 - overall_intensity;
+
         let mut pixel_index = 0;
         for (band_index, band) in input.iter().enumerate() {
             let intensity = ((band / 100.0) * (pixels_per_band as f32)) as usize;
+            let amplified_intensity = intensity + ((band / 100.0) * unused_pixels as f32).round() as usize;
+            unused_pixels -= ((band / 100.0) * unused_pixels as f32).round() as usize;
 
-            for i in 0..intensity {
+            for i in 0..amplified_intensity {
                 pixels[(self.total_pixels / 2) + pixel_index + i].color_index = band_index;
                 pixels[(self.total_pixels / 2) - pixel_index - i].color_index = band_index;
             }
 
-            pixel_index += intensity;
+            pixel_index += amplified_intensity;
         }
 
-        for i in pixel_index..((self.total_pixels / 2) - 1) {
+        for i in pixel_index..(self.total_pixels / 2) {
             pixels[(self.total_pixels / 2) + i].off();
             pixels[(self.total_pixels / 2) - i].off();
         }
