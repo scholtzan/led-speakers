@@ -8,6 +8,11 @@
         },
         "center_viz": {
             "pretty_name": "Center Viz"
+        },
+        "solid_beat_viz": {
+            "pretty_name": "Solid Beat Viz",
+            "fade_colors": true,
+            "fade_duration": 20
         }
     },
     "output": {

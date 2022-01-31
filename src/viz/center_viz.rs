@@ -1,8 +1,6 @@
 use serde::{Deserialize, Serialize};
-use std::sync::atomic::{AtomicBool, Ordering};
-use std::sync::{Arc, Mutex, Weak};
 
-use crate::led::Led;
+use crate::theme::Color;
 use crate::viz::PixelViz;
 use crate::viz::Viz;
 
@@ -27,7 +25,7 @@ impl Viz for CenterViz {
         &self.config.pretty_name
     }
 
-    fn update(&mut self, input: &Vec<f32>) -> Vec<PixelViz> {
+    fn update(&mut self, input: &Vec<f32>, colors: &Vec<Color>) -> Vec<PixelViz> {
         let total_bands = input.len();
         let pixels_per_band: usize = (self.total_pixels / 2) / total_bands;
         let mut pixels = vec![PixelViz::default(); self.total_pixels];
@@ -42,7 +40,8 @@ impl Viz for CenterViz {
         let mut pixel_index = 0;
         for (band_index, band) in input.iter().enumerate() {
             let intensity = ((band / 100.0) * (pixels_per_band as f32)) as usize;
-            let amplified_intensity = intensity + ((band / 100.0) * unused_pixels as f32).round() as usize;
+            let amplified_intensity =
+                intensity + ((band / 100.0) * unused_pixels as f32).round() as usize;
             unused_pixels -= ((band / 100.0) * unused_pixels as f32).round() as usize;
 
             for i in 0..amplified_intensity {

@@ -29,11 +29,11 @@ impl Led {
     /// # Example
     /// ```
     /// let mut led = Led::new(150, "/dev/spidev0.0".to_string());
-    /// led.set_pixel(255, 0, 0);
+    /// led.set_pixel(255, 0, 0, 1.0);
     /// ```
-    pub fn set_pixel(&mut self, pixel: usize, red: u8, green: u8, blue: u8) {
+    pub fn set_pixel(&mut self, pixel: usize, red: u8, green: u8, blue: u8, brightness: f32) {
         if let Some(pixel) = self.pixels.get_mut(pixel) {
-            pixel.set_rgba(red, green, blue);
+            pixel.set_rgba(red, green, blue, brightness);
         }
     }
 
@@ -42,11 +42,11 @@ impl Led {
     /// # Example
     /// ```
     /// let mut led = Led::new(150, "/dev/spidev0.0".to_string());
-    /// led.set_all_pixels(255, 0, 0);
+    /// led.set_all_pixels(255, 0, 0, 1.0);
     /// ```
-    pub fn set_all_pixels(&mut self, red: u8, green: u8, blue: u8) {
+    pub fn set_all_pixels(&mut self, red: u8, green: u8, blue: u8, brightness: f32) {
         for pixel in &mut self.pixels {
-            pixel.set_rgba(red, green, blue);
+            pixel.set_rgba(red, green, blue, brightness);
         }
     }
 
@@ -58,7 +58,7 @@ impl Led {
     /// led.clear();
     /// ```
     pub fn clear(&mut self) {
-        self.set_all_pixels(0, 0, 0);
+        self.set_all_pixels(0, 0, 0, 0.0);
     }
 
     /// Updates pixel values and apply to LEDs of LED strip.
@@ -98,10 +98,10 @@ impl Pixel {
     /// };
     /// led.set_rgba(255, 255, 255);
     /// ```
-    fn set_rgba(&mut self, red: u8, green: u8, blue: u8) {
-        self.red = red;
-        self.green = green;
-        self.blue = blue;
+    fn set_rgba(&mut self, red: u8, green: u8, blue: u8, brightness: f32) {
+        self.red = ((red as f32) * brightness) as u8;
+        self.green = ((green as f32) * brightness) as u8;
+        self.blue = ((blue as f32) * brightness) as u8;
     }
 
     /// Turns off the LED pixel.

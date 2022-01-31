@@ -1,14 +1,12 @@
 use dyn_clone::DynClone;
 use std::sync::atomic::{AtomicBool, Ordering};
-use std::sync::{Arc, Mutex, Weak};
+use std::sync::{Arc, Mutex};
 use std::thread;
-use std::thread::JoinHandle;
 
-use crate::led::Led;
 use crate::settings::OutputSettings;
+use crate::theme::Color;
 use crate::theme::Theme;
 use crate::transform::AudioTransformer;
-use std::time;
 
 #[typetag::serde]
 /// Abstract type implemented by all visualizations.
@@ -20,7 +18,7 @@ pub trait Viz: DynClone + Sync + Send {
     fn get_pretty_name(&self) -> &str;
 
     /// Updates the visualization state based on the provided input.
-    fn update(&mut self, input: &Vec<f32>) -> Vec<PixelViz>;
+    fn update(&mut self, input: &Vec<f32>, colors: &Vec<Color>) -> Vec<PixelViz>;
 
     /// Sets the number of total available pizels.
     fn set_total_pixels(&mut self, pixels: usize);
@@ -40,14 +38,15 @@ pub struct PixelViz {
 
     /// Multiplier applied to blue
     pub blue_mul: f32,
+
+    /// Brightness multiplier
+    pub brightness: f32,
 }
 
 impl PixelViz {
     /// Turns off the pixel in the visualization.
     pub fn off(&mut self) {
-        self.red_mul = 0.0;
-        self.blue_mul = 0.0;
-        self.green_mul = 0.0;
+        self.brightness = 0.0;
     }
 }
 
@@ -59,6 +58,7 @@ impl Default for PixelViz {
             red_mul: 1.0,
             green_mul: 1.0,
             blue_mul: 1.0,
+            brightness: 1.0,
         }
     }
 }
@@ -101,14 +101,14 @@ impl VizRunner {
 
             while !stopped.load(Ordering::Relaxed) {
                 // update visualizations for left and right channel
-                let left_pixel_viz = left_viz
-                    .lock()
-                    .unwrap()
-                    .update(&transformer.lock().unwrap().left_bands.lock().unwrap());
-                let right_pixel_viz = right_viz
-                    .lock()
-                    .unwrap()
-                    .update(&transformer.lock().unwrap().right_bands.lock().unwrap());
+                let left_pixel_viz = left_viz.lock().unwrap().update(
+                    &transformer.lock().unwrap().left_bands.lock().unwrap(),
+                    &colors,
+                );
+                let right_pixel_viz = right_viz.lock().unwrap().update(
+                    &transformer.lock().unwrap().right_bands.lock().unwrap(),
+                    &colors,
+                );
 
                 // show pixel visualizations and apply multipliers
                 for (i, pixel_viz) in left_pixel_viz.iter().enumerate() {
@@ -118,6 +118,7 @@ impl VizRunner {
                         ((color.r as f32) * pixel_viz.red_mul) as u8,
                         ((color.g as f32) * pixel_viz.green_mul) as u8,
                         ((color.b as f32) * pixel_viz.blue_mul) as u8,
+                        pixel_viz.brightness,
                     )
                 }
 
@@ -128,6 +129,7 @@ impl VizRunner {
                         ((color.r as f32) * pixel_viz.red_mul) as u8,
                         ((color.g as f32) * pixel_viz.green_mul) as u8,
                         ((color.b as f32) * pixel_viz.blue_mul) as u8,
+                        pixel_viz.brightness,
                     )
                 }
 

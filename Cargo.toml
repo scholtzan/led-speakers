@@ -27,6 +27,7 @@ rustfft = "6.0.1"
 typetag = "0.1"
 dyn-clone = "1.0.4"
 ws2818-rgb-led-spi-driver = "2.0.0"
+chrono = { version = "0.4", features = ["serde"] }
 
 [dependencies.pulse]
 version = "2.0"

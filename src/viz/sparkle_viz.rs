@@ -1,8 +1,6 @@
 use serde::{Deserialize, Serialize};
-use std::sync::atomic::{AtomicBool, Ordering};
-use std::sync::{Arc, Mutex, Weak};
 
-use crate::led::Led;
+use crate::theme::Color;
 use crate::viz::PixelViz;
 use crate::viz::Viz;
 
@@ -27,7 +25,7 @@ impl Viz for SparkleViz {
         &self.config.pretty_name
     }
 
-    fn update(&mut self, input: &Vec<f32>) -> Vec<PixelViz> {
+    fn update(&mut self, input: &Vec<f32>, colors: &Vec<Color>) -> Vec<PixelViz> {
         vec![]
     }
 
