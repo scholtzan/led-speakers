@@ -5,8 +5,8 @@ use serde_json::Value;
 use crate::led::Led;
 use crate::theme::Theme;
 use crate::viz::{
-    CenterViz, CenterVizConfig, RotatingViz, RotatingVizConfig, SolidBeatViz, SolidBeatVizConfig,
-    SolidViz, SolidVizConfig, SparkleViz, SparkleVizConfig, Viz,
+    CenterViz, CenterVizConfig, FadingBeatViz, FadingBeatVizConfig, RotatingViz, RotatingVizConfig,
+    SolidBeatViz, SolidBeatVizConfig, SolidViz, SolidVizConfig, SparkleViz, SparkleVizConfig, Viz,
 };
 
 #[derive(Serialize, Deserialize, Clone)]
@@ -108,6 +108,11 @@ where
                     let viz_config: SolidBeatVizConfig =
                         serde_json::from_value(args.clone()).unwrap();
                     Ok(Box::new(SolidBeatViz::new(viz_config)))
+                }
+                "fading_beat_viz" => {
+                    let viz_config: FadingBeatVizConfig =
+                        serde_json::from_value(args.clone()).unwrap();
+                    Ok(Box::new(FadingBeatViz::new(viz_config)))
                 }
                 _ => Err(D::Error::custom(format!("Unknown {:?}", name.as_str()))),
             };

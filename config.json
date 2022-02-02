@@ -13,6 +13,12 @@
             "pretty_name": "Solid Beat Viz",
             "fade_colors": true,
             "fade_duration": 20
+        },
+        "fading_beat_viz": {
+            "pretty_name": "Fading Beat Viz",
+            "fade_duration": 1,
+            "fade_threshold": 10,
+            "frequency_magnitude_buffer_size": 300
         }
     },
     "output": {

@@ -1,4 +1,5 @@
 mod center_viz;
+mod fading_beat_viz;
 mod rotating_viz;
 mod solid_beat_viz;
 mod solid_viz;
@@ -7,6 +8,8 @@ mod viz;
 
 pub use center_viz::CenterViz;
 pub use center_viz::CenterVizConfig;
+pub use fading_beat_viz::FadingBeatViz;
+pub use fading_beat_viz::FadingBeatVizConfig;
 pub use rotating_viz::RotatingViz;
 pub use rotating_viz::RotatingVizConfig;
 pub use solid_beat_viz::SolidBeatViz;
