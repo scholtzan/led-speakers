@@ -1,3 +1,4 @@
+mod blend_viz;
 mod center_viz;
 mod fading_beat_viz;
 mod rotating_viz;
@@ -6,6 +7,8 @@ mod solid_viz;
 mod sparkle_viz;
 mod viz;
 
+pub use blend_viz::BlendViz;
+pub use blend_viz::BlendVizConfig;
 pub use center_viz::CenterViz;
 pub use center_viz::CenterVizConfig;
 pub use fading_beat_viz::FadingBeatViz;

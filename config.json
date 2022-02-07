@@ -19,6 +19,9 @@
             "fade_duration": 1,
             "fade_threshold": 10,
             "frequency_magnitude_buffer_size": 300
+        },
+        "blend_viz": {
+            "pretty_name": "Blend Viz"
         }
     },
     "output": {
