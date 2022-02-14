@@ -101,7 +101,6 @@ async fn main() -> Result<()> {
     );
     viz_left.set_total_pixels(settings.output.left.total_leds as usize);
     let mut viz_right = dyn_clone::clone_box(&*viz_left);
-    viz_right.set_total_pixels(settings.output.right.total_leds as usize);
 
     // viz runner will update the visualization periodically
     let viz_runner = VizRunner {

@@ -24,7 +24,8 @@
             "pretty_name": "Blend Viz",
             "spread": 6,
             "blend_speed": 3,
-            "offset_weight": 1
+            "offset_weight": 1,
+            "blend_factor": 10
         }
     },
     "output": {
