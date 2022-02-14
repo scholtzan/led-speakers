@@ -21,7 +21,10 @@
             "frequency_magnitude_buffer_size": 300
         },
         "blend_viz": {
-            "pretty_name": "Blend Viz"
+            "pretty_name": "Blend Viz",
+            "spread": 6,
+            "blend_speed": 3,
+            "offset_weight": 1
         }
     },
     "output": {

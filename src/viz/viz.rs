@@ -2,6 +2,7 @@ use dyn_clone::DynClone;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
 use std::thread;
+use serde::{Deserialize, Serialize};
 
 use crate::settings::OutputSettings;
 use crate::theme::Color;
@@ -24,7 +25,7 @@ pub trait Viz: DynClone + Sync + Send {
     fn set_total_pixels(&mut self, pixels: usize);
 }
 
-#[derive(Clone)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 /// Represents the visualization state of an LED pixel.
 pub struct PixelViz {
     /// Index of the theme color to use
