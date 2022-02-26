@@ -22,9 +22,9 @@ impl Color {
     /// ```
     pub fn from_vec(v: &Vec<u8>) -> Self {
         Color {
-            r: v[0],
-            g: v[1],
-            b: v[2],
+            r: if v[0] == 0 { 1 } else { v[0] },
+            g: if v[1] == 0 { 1 } else { v[1] },
+            b: if v[2] == 0 { 1 } else { v[2] },
         }
     }
 }

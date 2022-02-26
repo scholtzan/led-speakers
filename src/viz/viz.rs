@@ -1,8 +1,8 @@
 use dyn_clone::DynClone;
+use serde::{Deserialize, Serialize};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
 use std::thread;
-use serde::{Deserialize, Serialize};
 
 use crate::settings::OutputSettings;
 use crate::theme::Color;
