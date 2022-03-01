@@ -23,6 +23,7 @@ pub struct BlendViz {
     total_pixels: usize,
     elapsed_time: Vec<DateTime<Utc>>,
     pixels: Vec<PixelViz>,
+    target_colors: Vec<Color>,
 }
 
 #[typetag::serde]
@@ -36,8 +37,14 @@ impl Viz for BlendViz {
     }
 
     fn update(&mut self, input: &Vec<f32>, colors: &Vec<Color>) -> Vec<PixelViz> {
-        // todo: use bands for colors
         let total_bands = input.len();
+        let total_magnitude: f32 = input.iter().sum();
+        let mut rng = rand::thread_rng();
+
+        let freq_amounts: Vec<i64> = input
+            .iter()
+            .map(|m| (100.0 * m / (total_magnitude + 0.001)) as i64)
+            .collect::<Vec<i64>>();
         let now = Utc::now();
 
         for pixel_index in 0..self.total_pixels {
@@ -52,22 +59,54 @@ impl Viz for BlendViz {
             };
 
             let mut color_index = self.pixels[pixel_index].color_index;
-            let mut target_color = colors[color_index];
+            let mut target_color = self.target_colors[pixel_index];
 
             if elapsed > (self.config.blend_speed as i64) {
-                color_index = (self.pixels[pixel_index].color_index
-                    + (elapsed % self.config.blend_speed as i64) as usize)
-                    % colors.len();
-                target_color = colors[color_index];
-                self.elapsed_time[pixel_index] = now;
+                let mut r = rng.gen_range(0..100) as i64;
+                color_index = 0;
 
+                while r > 0 && color_index < freq_amounts.len() - 1 {
+                    r -= freq_amounts[color_index as usize];
+
+                    if r > 0 {
+                        color_index += 1;
+                    }
+                }
+
+                target_color = colors[color_index % colors.len()];
+                target_color.r =
+                    (target_color.r as f32 * (input[color_index] as f32 / 100.0)) as u8;
+                target_color.g =
+                    (target_color.g as f32 * (input[color_index] as f32 / 100.0)) as u8;
+                target_color.b =
+                    (target_color.b as f32 * (input[color_index] as f32 / 100.0)) as u8;
+                target_color.r = if target_color.r == 0 {
+                    1
+                } else {
+                    target_color.r
+                };
+                target_color.g = if target_color.g == 0 {
+                    1
+                } else {
+                    target_color.g
+                };
+                target_color.b = if target_color.b == 0 {
+                    1
+                } else {
+                    target_color.b
+                };
+                self.target_colors[pixel_index] = target_color;
+
+                self.elapsed_time[pixel_index] = now;
                 self.pixels[pixel_index].color_index = color_index;
             }
 
+            let actual_color = colors[self.pixels[pixel_index].color_index];
+
             let blend_color = Self::blend(&current_color, &target_color, self.config.blend_factor);
-            self.pixels[pixel_index].red_mul = (blend_color.r as f32) / (target_color.r as f32);
-            self.pixels[pixel_index].green_mul = (blend_color.g as f32) / (target_color.g as f32);
-            self.pixels[pixel_index].blue_mul = (blend_color.b as f32) / (target_color.b as f32);
+            self.pixels[pixel_index].red_mul = (blend_color.r as f32) / (actual_color.r as f32);
+            self.pixels[pixel_index].green_mul = (blend_color.g as f32) / (actual_color.g as f32);
+            self.pixels[pixel_index].blue_mul = (blend_color.b as f32) / (actual_color.b as f32);
         }
 
         self.pixels.clone()
@@ -77,6 +116,7 @@ impl Viz for BlendViz {
         self.total_pixels = pixels;
         self.pixels = vec![PixelViz::default(); pixels];
         self.elapsed_time = vec![Utc::now(); pixels];
+        self.target_colors = vec![Color { r: 1, g: 1, b: 1 }; pixels];
         let offsets = self.offsets();
 
         for pixel_index in 0..self.total_pixels {
@@ -96,6 +136,7 @@ impl BlendViz {
             total_pixels: 0,
             elapsed_time: Vec::new(),
             pixels: Vec::new(),
+            target_colors: Vec::new(),
         }
     }
 
