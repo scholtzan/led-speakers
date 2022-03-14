@@ -95,6 +95,7 @@ impl Viz for BlendViz {
                 } else {
                     target_color.b
                 };
+
                 self.target_colors[pixel_index] = target_color;
 
                 self.elapsed_time[pixel_index] = now;
