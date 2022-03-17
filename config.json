@@ -2,8 +2,14 @@
     "vizualizations": {
         "rotating_viz": {
             "pretty_name": "Rotating Viz",
-            "speed": 2.0,
-            "falloff": 0.5
+            "speed": 5.0,
+            "falloff": 0.1
+        },
+        "sparkle_viz": {
+            "pretty_name": "Sparkle Viz",
+            "falloff": 0.1,
+            "speed": 5.0,
+            "max_ignite": 2.0
         },
         "solid_viz": {
             "pretty_name": "Solid Viz"
