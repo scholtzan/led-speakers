@@ -96,7 +96,7 @@ async fn main() -> Result<()> {
         &*settings
             .vizualizations
             .into_iter()
-            .find(|v| v.get_name() == "blend_viz")
+            .find(|v| v.get_name() == "rotating_viz")
             .unwrap(),
     );
     viz_left.set_total_pixels(settings.output.left.total_leds as usize);

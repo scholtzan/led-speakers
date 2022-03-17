@@ -1,7 +1,9 @@
 {
     "vizualizations": {
         "rotating_viz": {
-            "pretty_name": "Rotating Viz"
+            "pretty_name": "Rotating Viz",
+            "speed": 2.0,
+            "falloff": 0.5
         },
         "solid_viz": {
             "pretty_name": "Solid Viz"
