@@ -1,9 +1,19 @@
 [package]
-name = "web"
+name = "led-speaker-frontend"
 version = "0.1.0"
 authors = ["Anna Scholtz <anna@scholtzan.net>"]
 edition = "2018"
 
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
-
 [dependencies]
+anyhow = "1.0.28"
+yew = "0.18"
+dotenv = "0.15.0"
+dotenv_codegen = "0.15.0"
+wasm-logger = "0.2.0"
+wasm-bindgen = { version = "0.2.67", features = ["serde-serialize"] }
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+http = "0.2.1"
+
+[workspace]
+members = []
