@@ -23,6 +23,8 @@ pub trait Viz: DynClone + Sync + Send {
 
     /// Sets the number of total available pizels.
     fn set_total_pixels(&mut self, pixels: usize);
+
+    // todo: get_settings()
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]

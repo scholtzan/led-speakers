@@ -76,8 +76,28 @@ impl Component for App {
                 self.state.current_visualization = viz_info.current;
                 true
             }
-            Message::GetThemes => true,
-            Message::GetThemesSuccess(theme_info) => true,
+            Message::GetThemes => {
+                let handler =
+                    self.link
+                        .callback(move |response: api::FetchResponse<Themes>| {
+                            let (meta, Json(data)) = response.into_parts();
+                            match data {
+                                Ok(viz_info) => Message::GetThemesSuccess(viz_info),
+                                Err(err) => Message::Error(Error::FetchError(
+                                    format!("Error getting themes: {:?}", err.to_string()),
+                                    meta,
+                                )),
+                            }
+                        });
+
+                self.task = Some(api::get_themes(handler));
+                true
+            },
+            Message::GetThemesSuccess(theme_info) => {
+                self.state.themes = theme_info.themes;
+                self.state.current_theme = theme_info.current;
+                true
+            },
             Message::Error(err) => true,
         }
     }
@@ -88,7 +108,77 @@ impl Component for App {
 
     fn view(&self) -> Html {
         html! {
-            // impl
+            <>
+            <div class="container">
+                <nav class="navbar" role="navigation" aria-label="main navigation">
+                    <div class="navbar-brand">
+                    {"LED Speakers"}
+
+                    <a role="button" class="navbar-burger" aria-label="menu" aria-expanded="false" data-target="navbarBasicExample">
+                        <span aria-hidden="true"></span>
+                        <span aria-hidden="true"></span>
+                        <span aria-hidden="true"></span>
+                    </a>
+                    </div>
+
+                    <div class="navbar-menu">
+                        <div class="navbar-end">
+                            <div class="navbar-item">
+                                <div class="buttons">
+                                    <a class="button is-primary">
+                                    <strong>{"Turn on"}</strong>
+                                    </a>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </nav>
+
+                <div>
+                    <div class="field">
+                        <label class="label">{"Visualization"}</label>
+                        <div class="control">
+                            <div class="select">
+                                <select>
+                                {
+                                    for self.state.visualizations.iter()
+                                    .map(|viz| self.view_select_option(&viz.pretty_name, viz.identifier == self.state.current_visualization))
+                                }
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="field">
+                        <label class="label">{"Theme"}</label>
+                        <div class="control">
+                            <div class="select">
+                                <select>
+                                {
+                                    for self.state.themes.iter()
+                                    .map(|theme| self.view_select_option(&theme.name, theme.name == self.state.current_theme))
+                                }
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            </>
+        }
+    }
+}
+
+impl App {
+    fn view_select_option(&self, select_option: &str, selected: bool) -> Html {
+        if selected {
+            html! {
+                <option selected=true>{select_option}</option>
+            }
+        } else {
+            html! {
+                <option>{select_option}</option>
+            }
         }
     }
 }

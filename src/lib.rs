@@ -1,6 +1,8 @@
+pub mod app;
 pub mod audio;
 pub mod buffer;
 pub mod led;
+pub mod routes;
 pub mod settings;
 pub mod theme;
 pub mod transform;

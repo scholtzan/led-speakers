@@ -1,5 +1,5 @@
 {
-    "vizualizations": {
+    "visualizations": {
         "rotating_viz": {
             "pretty_name": "Rotating Viz",
             "speed": 5.0,
@@ -77,5 +77,7 @@
     "upper_cutoff": 10000.0,
     "monstercat": 50.0,
     "decay": 10.0,
-    "buffer_size": 65535
+    "buffer_size": 65535,
+    "server_host": "127.0.0.1",
+    "server_port": "8000"
 }

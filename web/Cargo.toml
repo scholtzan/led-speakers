@@ -17,3 +17,6 @@ http = "0.2.1"
 
 [workspace]
 members = []
+
+[lib]
+crate-type = ["rlib", "cdylib"]

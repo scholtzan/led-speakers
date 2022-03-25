@@ -6,15 +6,19 @@ use dyn_clone::DynClone;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex, Weak};
 
+mod app;
 mod audio;
 mod buffer;
 mod led;
+mod routes;
 mod settings;
 mod theme;
 mod transform;
 mod viz;
 
+use crate::app::{AppState, Visualization};
 use crate::audio::AudioStream;
+use crate::routes::init;
 use crate::settings::Settings;
 use crate::transform::AudioTransformer;
 use crate::viz::RotatingViz;
@@ -34,48 +38,22 @@ async fn serve_index_file() -> Result<actix_files::NamedFile, Error> {
     )
 }
 
-/// Initializes available routes
-pub fn init(cfg: &mut web::ServiceConfig) {
-    cfg.service(get_viz);
-    cfg.service(get_themes);
-    cfg.service(get_viz_types);
-    cfg.service(set_viz);
-}
-
-#[get("/api/vizualization")]
-async fn get_viz() -> impl Responder {
-    HttpResponse::Ok().json("Todo: get viz")
-}
-
-#[get("/api/theme")]
-async fn get_themes() -> impl Responder {
-    HttpResponse::Ok().json("Todo: get themes")
-}
-
-#[get("/api/type")]
-async fn get_viz_types() -> impl Responder {
-    HttpResponse::Ok().json("Todo: get viz types")
-}
-
-#[post("/api/viz")]
-async fn set_viz() -> impl Responder {
-    HttpResponse::Ok().json("Todo: update viz")
-}
-
-/// Shared web server state
-struct AppState {
-    vizualization: Mutex<VizRunner>,
-}
-
 #[actix_rt::main]
 async fn main() -> Result<()> {
-    // read environment variables
-    dotenv().ok();
-
     // read settings from config.json
     let mut conf = config::Config::default();
     conf.merge(config::File::with_name(CONFIG)).unwrap();
     let settings: Settings = conf.try_into().unwrap();
+    let visualizations = settings
+        .visualizations
+        .iter()
+        .map(|v| Visualization {
+            pretty_name: v.get_pretty_name().to_string(),
+            identifier: v.get_name().to_string(),
+            settings: None,
+        })
+        .collect::<Vec<Visualization>>()
+        .clone();
 
     // new audio transformer instance from settings
     // has access to audio stream
@@ -94,7 +72,7 @@ async fn main() -> Result<()> {
     // instantiate visualization
     let mut viz_left = dyn_clone::clone_box(
         &*settings
-            .vizualizations
+            .visualizations
             .into_iter()
             .find(|v| v.get_name() == "sparkle_viz")
             .unwrap(),
@@ -113,11 +91,31 @@ async fn main() -> Result<()> {
     };
     viz_runner.start();
 
-    // instantiate shared state for web server
-    let app_state = web::Data::new(AppState {
-        vizualization: Mutex::new(viz_runner),
-    });
+    eprintln!("Start server");
 
+    let host = settings.server_host.clone();
+    let port = settings.server_port.clone();
+
+    let shared_viz_runner = Arc::new(Mutex::new(viz_runner)).clone();
+    let themes = settings.themes.clone();
+
+    // let visualizations = &settings.visualizations.iter().map(|v| {
+    //     Visualization {
+    //         pretty_name: v.as_ref().get_pretty_name().to_string(),
+    //         identifier: v.as_ref().get_name().to_string(),
+    //         settings: None
+    //     }
+    // }).collect::<Vec<Visualization>>().clone();
+
+    // *settings
+    //     .visualizations
+    //     .iter().map(|v| {
+    //         Visualization {
+    //             pretty_name: v.as_ref().get_pretty_name().to_string(),
+    //             identifier: v.as_ref().get_name().to_string(),
+    //             settings: None
+    //         }
+    //     }).collect::<Vec<Visualization>>().to_vec().clone();
     // initialize and start web server
     HttpServer::new(move || {
         App::new()
@@ -131,6 +129,11 @@ async fn main() -> Result<()> {
                     .allowed_header(http::header::ACCESS_CONTROL_ALLOW_CREDENTIALS)
                     .allowed_header(http::header::ALLOW),
             )
+            .app_data(web::Data::new(AppState {
+                viz_runner: shared_viz_runner.clone(),
+                themes: themes.clone(),
+                visualizations: visualizations.clone(),
+            }))
             .configure(init)
             .service(
                 actix_files::Files::new("/", ASSETS_DIR)
@@ -138,11 +141,7 @@ async fn main() -> Result<()> {
                     .default_handler(web::to(|| serve_index_file())),
             )
     })
-    .bind(&format!(
-        "{}:{}",
-        dotenv!("SERVER_HOST"),
-        dotenv!("SERVER_PORT")
-    ))?
+    .bind(&format!("{}:{}", host, port))?
     .workers(1)
     .run()
     .await?;

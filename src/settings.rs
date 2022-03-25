@@ -42,7 +42,7 @@ pub struct OutputSettings {
 pub struct Settings {
     #[serde(deserialize_with = "parse_visualizations")]
     /// Available visualizations
-    pub vizualizations: Vec<Box<dyn Viz>>,
+    pub visualizations: Vec<Box<dyn Viz>>,
 
     /// Output settings
     pub output: OutputSettings,
@@ -73,6 +73,12 @@ pub struct Settings {
 
     /// Audio buffer size
     pub buffer_size: usize,
+
+    /// Server host IP
+    pub server_host: String,
+
+    /// Server host port
+    pub server_port: String,
 }
 
 /// Creates a new visualization from the settings.

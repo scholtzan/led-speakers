@@ -5,7 +5,7 @@ use led_speakers::theme::{Color, Theme};
 fn settings_from_json() {
     let settings_json = r#"
         {
-            "vizualizations": {
+            "visualizations": {
                 "rotating_viz": {
                     "pretty_name": "Rotating Viz"
                 }
@@ -44,11 +44,11 @@ fn settings_from_json() {
         }
     );
     assert_eq!(
-        settings.vizualizations[0].as_ref().get_pretty_name(),
+        settings.visualizations[0].as_ref().get_pretty_name(),
         "Rotating Viz".to_string()
     );
     assert_eq!(
-        settings.vizualizations[0].as_ref().get_name(),
+        settings.visualizations[0].as_ref().get_name(),
         "rotating_viz".to_string()
     );
 }
