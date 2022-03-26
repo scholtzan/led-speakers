@@ -27,7 +27,7 @@ use crate::viz::VizRunner;
 #[macro_use]
 extern crate dotenv_codegen;
 
-const ASSETS_DIR: &str = "../web/dist/spa";
+const ASSETS_DIR: &str = "web/static";
 const CONFIG: &str = "config.json";
 
 /// Serves the index.html file
@@ -99,24 +99,6 @@ async fn main() -> Result<()> {
     let shared_viz_runner = Arc::new(Mutex::new(viz_runner)).clone();
     let themes = settings.themes.clone();
 
-    // let visualizations = &settings.visualizations.iter().map(|v| {
-    //     Visualization {
-    //         pretty_name: v.as_ref().get_pretty_name().to_string(),
-    //         identifier: v.as_ref().get_name().to_string(),
-    //         settings: None
-    //     }
-    // }).collect::<Vec<Visualization>>().clone();
-
-    // *settings
-    //     .visualizations
-    //     .iter().map(|v| {
-    //         Visualization {
-    //             pretty_name: v.as_ref().get_pretty_name().to_string(),
-    //             identifier: v.as_ref().get_name().to_string(),
-    //             settings: None
-    //         }
-    //     }).collect::<Vec<Visualization>>().to_vec().clone();
-    // initialize and start web server
     HttpServer::new(move || {
         App::new()
             .wrap(
@@ -127,7 +109,9 @@ async fn main() -> Result<()> {
                     .allowed_headers(vec![http::header::AUTHORIZATION, http::header::ACCEPT])
                     .allowed_header(http::header::CONTENT_TYPE)
                     .allowed_header(http::header::ACCESS_CONTROL_ALLOW_CREDENTIALS)
-                    .allowed_header(http::header::ALLOW),
+                    .allowed_header(http::header::ALLOW)
+                    .supports_credentials()
+                    .max_age(3600),
             )
             .app_data(web::Data::new(AppState {
                 viz_runner: shared_viz_runner.clone(),
