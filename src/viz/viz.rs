@@ -3,6 +3,7 @@ use serde::{Deserialize, Serialize};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
 use std::thread;
+use std::thread::JoinHandle;
 
 use crate::settings::OutputSettings;
 use crate::theme::Color;
@@ -81,7 +82,7 @@ pub struct VizRunner {
     pub is_stopped: Arc<AtomicBool>,
 
     /// Theme to use in visualization
-    pub theme: Theme,
+    pub theme: Arc<Mutex<Theme>>,
 
     /// Audio transformer; used for visualization input
     pub transformer: Arc<Mutex<AudioTransformer>>,
@@ -94,15 +95,16 @@ impl VizRunner {
         let left_viz = Arc::clone(&self.viz_left);
         let right_viz = Arc::clone(&self.viz_right);
         let output = self.output_settings.clone();
-        let colors = self.theme.colors.clone();
+        let theme = Arc::clone(&self.theme);
         let transformer = Arc::clone(&self.transformer);
 
-        let handle = thread::spawn(move || {
+        let handle = Some(thread::spawn(move || {
             // init outputs from settings
             let mut left_output = output.left.to_led();
             let mut right_output = output.right.to_led();
 
             while !stopped.load(Ordering::Relaxed) {
+                let colors = theme.lock().unwrap().colors.clone();
                 // update visualizations for left and right channel
                 let left_pixel_viz = left_viz.lock().unwrap().update(
                     &transformer.lock().unwrap().left_bands.lock().unwrap(),
@@ -139,7 +141,7 @@ impl VizRunner {
                 left_output.show();
                 right_output.show();
             }
-        });
+        }));
     }
 
     /// Stops the visualization from updating and running.
@@ -149,6 +151,15 @@ impl VizRunner {
 
     /// Sets the provided theme for the visualization.
     pub fn set_theme(&mut self, theme: Theme) {
-        self.theme = theme;
+        *self.theme.lock().unwrap() = theme;
+    }
+
+    pub fn set_visualization(&mut self, viz: Box<dyn Viz>) {
+        let mut left_viz = dyn_clone::clone_box(&*viz);
+        left_viz.set_total_pixels(self.output_settings.left.total_leds as usize);
+        *self.viz_left.lock().unwrap() = left_viz;
+        let mut right_viz = dyn_clone::clone_box(&*viz);
+        right_viz.set_total_pixels(self.output_settings.right.total_leds as usize);
+        *self.viz_right.lock().unwrap() = right_viz;
     }
 }

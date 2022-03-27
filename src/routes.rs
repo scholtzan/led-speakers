@@ -59,7 +59,7 @@ async fn get_themes(data: web::Data<AppState>) -> impl Responder {
     let themes = data.themes.clone();
     let current_theme = data.viz_runner.lock().unwrap();
     let response = ThemesResponse {
-        current: current_theme.theme.name.clone(),
+        current: current_theme.theme.lock().unwrap().name.clone(),
         themes: themes,
     };
     HttpResponse::Ok().json(response)
@@ -77,10 +77,10 @@ async fn update_visualization(
         .find(|&v| v.get_name() == new_visualization.visualization);
 
     if let Some(viz) = new_viz {
-        data.viz_runner.lock().unwrap().viz_left =
-            Arc::new(Mutex::new(dyn_clone::clone_box(&**viz)));
-        data.viz_runner.lock().unwrap().viz_right =
-            Arc::new(Mutex::new(dyn_clone::clone_box(&**viz)));
+        data.viz_runner
+            .lock()
+            .unwrap()
+            .set_visualization(dyn_clone::clone_box(&**viz));
         HttpResponse::Ok().json(true)
     } else {
         HttpResponse::Ok().json(false)
@@ -95,7 +95,7 @@ async fn update_theme(
     let themes = data.themes.clone();
     let new_theme = themes.into_iter().find(|t| t.name == new_theme.theme);
     if let Some(theme) = new_theme {
-        data.viz_runner.lock().unwrap().theme = theme;
+        data.viz_runner.lock().unwrap().set_theme(theme);
         HttpResponse::Ok().json(true)
     } else {
         HttpResponse::Ok().json(false)

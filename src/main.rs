@@ -78,12 +78,12 @@ async fn main() -> Result<()> {
     let mut viz_right = dyn_clone::clone_box(&*viz_left);
 
     // viz runner will update the visualization periodically
-    let viz_runner = VizRunner {
+    let mut viz_runner = VizRunner {
         viz_left: Arc::new(Mutex::new(viz_left)),
         viz_right: Arc::new(Mutex::new(viz_right)),
         output_settings: shared_settings.output.clone(),
         is_stopped: Arc::new(AtomicBool::from(false)),
-        theme: shared_settings.themes[0].clone(),
+        theme: Arc::new(Mutex::new(shared_settings.themes[0].clone())),
         transformer: Arc::new(Mutex::new(transformer)),
     };
     viz_runner.start();
