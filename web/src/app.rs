@@ -28,6 +28,10 @@ pub enum Message {
     GetThemes,
     GetVisualizationsSuccess(Visualizations),
     GetThemesSuccess(Themes),
+    ChangeVisualization(String),
+    ChangeTheme(String),
+    ChangeVisualizationSuccess(String),
+    ChangeThemeSuccess(String),
     Error(Error),
 }
 
@@ -98,6 +102,50 @@ impl Component for App {
                 self.state.current_theme = theme_info.current;
                 true
             }
+            Message::ChangeVisualization(new_viz) => {
+                let new_viz_success = new_viz.clone();
+                let handler = self
+                    .link
+                    .callback(move |response: api::FetchResponse<bool>| {
+                        let (meta, Json(data)) = response.into_parts();
+                        match data {
+                            Ok(_) => Message::ChangeVisualizationSuccess(new_viz_success.clone()),
+                            Err(err) => Message::Error(Error::FetchError(
+                                format!("Error changing visualization: {:?}", err.to_string()),
+                                meta,
+                            )),
+                        }
+                    });
+
+                self.queue_task(api::update_visualization(new_viz, handler));
+                true
+            }
+            Message::ChangeTheme(new_theme) => {
+                let new_theme_success = new_theme.clone();
+                let handler = self
+                    .link
+                    .callback(move |response: api::FetchResponse<bool>| {
+                        let (meta, Json(data)) = response.into_parts();
+                        match data {
+                            Ok(_) => Message::ChangeThemeSuccess(new_theme_success.clone()),
+                            Err(err) => Message::Error(Error::FetchError(
+                                format!("Error changing theme: {:?}", err.to_string()),
+                                meta,
+                            )),
+                        }
+                    });
+
+                self.queue_task(api::update_theme(new_theme, handler));
+                true
+            }
+            Message::ChangeVisualizationSuccess(new_viz) => {
+                self.state.current_visualization = new_viz;
+                false
+            }
+            Message::ChangeThemeSuccess(new_theme) => {
+                self.state.current_theme = new_theme;
+                false
+            }
             Message::Error(err) => true,
         }
     }
@@ -107,6 +155,21 @@ impl Component for App {
     }
 
     fn view(&self) -> Html {
+        let on_viz_change = self.link.callback(|e: ChangeData| {
+            if let ChangeData::Select(e) = e {
+                Message::ChangeVisualization(e.value())
+            } else {
+                Message::Error(Error::Misc("Cannot change visualization".to_string()))
+            }
+        });
+        let on_theme_change = self.link.callback(|e: ChangeData| {
+            if let ChangeData::Select(e) = e {
+                Message::ChangeTheme(e.value())
+            } else {
+                Message::Error(Error::Misc("Cannot change theme".to_string()))
+            }
+        });
+
         html! {
             <>
             <nav class="navbar is-dark" role="navigation" aria-label="main navigation">
@@ -136,10 +199,10 @@ impl Component for App {
                         <label class="label">{"Visualization"}</label>
                         <div class="control">
                             <div class="select">
-                                <select>
+                                <select onchange=on_viz_change>
                                 {
                                     for self.state.visualizations.iter()
-                                    .map(|viz| self.view_select_option(&viz.pretty_name, viz.identifier == self.state.current_visualization))
+                                    .map(|viz| self.view_select_option(&viz.pretty_name, &viz.identifier, viz.identifier == self.state.current_visualization))
                                 }
                                 </select>
                             </div>
@@ -150,10 +213,10 @@ impl Component for App {
                         <label class="label">{"Theme"}</label>
                         <div class="control">
                             <div class="select">
-                                <select>
+                                <select onchange=on_theme_change>
                                 {
                                     for self.state.themes.iter()
-                                    .map(|theme| self.view_select_option(&theme.name, theme.name == self.state.current_theme))
+                                    .map(|theme| self.view_select_option(&theme.name, &theme.name, theme.name == self.state.current_theme))
                                 }
                                 </select>
                             </div>
@@ -167,14 +230,14 @@ impl Component for App {
 }
 
 impl App {
-    fn view_select_option(&self, select_option: &str, selected: bool) -> Html {
+    fn view_select_option(&self, select_option: &str, option_value: &str, selected: bool) -> Html {
         if selected {
             html! {
-                <option selected=true>{select_option}</option>
+                <option selected=true value=option_value.to_string()>{select_option}</option>
             }
         } else {
             html! {
-                <option>{select_option}</option>
+                <option value=option_value.to_string()>{select_option}</option>
             }
         }
     }

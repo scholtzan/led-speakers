@@ -5,6 +5,7 @@ use std::fmt;
 
 pub enum Error {
     FetchError(String, response::Parts),
+    Misc(String),
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
@@ -56,4 +57,16 @@ pub struct Color {
 
     /// Blue
     pub b: u8,
+}
+
+#[derive(Serialize, Deserialize, Clone, Debug)]
+pub struct ChangeVisualization {
+    /// Identifier of visualization LED speakers should change to
+    pub visualization: String,
+}
+
+#[derive(Serialize, Deserialize, Clone, Debug)]
+pub struct ChangeTheme {
+    /// Identifier of theme LED speakers should change to
+    pub theme: String,
 }

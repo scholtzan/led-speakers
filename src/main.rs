@@ -43,8 +43,11 @@ async fn main() -> Result<()> {
     // read settings from config.json
     let mut conf = config::Config::default();
     conf.merge(config::File::with_name(CONFIG)).unwrap();
+
     let settings: Settings = conf.try_into().unwrap();
-    let visualizations = settings
+    let shared_settings = Arc::new(settings).clone();
+    let visualizations = shared_settings
+        .clone()
         .visualizations
         .iter()
         .map(|v| Visualization {
@@ -58,46 +61,40 @@ async fn main() -> Result<()> {
     // new audio transformer instance from settings
     // has access to audio stream
     let mut transformer = AudioTransformer::new(
-        settings.sink,
-        settings.fft_len,
-        settings.total_bands,
-        settings.lower_cutoff,
-        settings.upper_cutoff,
-        settings.monstercat,
-        settings.decay,
-        settings.buffer_size,
+        shared_settings.sink.clone(),
+        shared_settings.fft_len,
+        shared_settings.total_bands,
+        shared_settings.lower_cutoff,
+        shared_settings.upper_cutoff,
+        shared_settings.monstercat,
+        shared_settings.decay,
+        shared_settings.buffer_size,
     );
     transformer.start();
 
     // instantiate visualization
-    let mut viz_left = dyn_clone::clone_box(
-        &*settings
-            .visualizations
-            .into_iter()
-            .find(|v| v.get_name() == "sparkle_viz")
-            .unwrap(),
-    );
-    viz_left.set_total_pixels(settings.output.left.total_leds as usize);
+    let mut viz_left = dyn_clone::clone_box(&*shared_settings.visualizations[0]);
+    viz_left.set_total_pixels(shared_settings.output.left.total_leds as usize);
     let mut viz_right = dyn_clone::clone_box(&*viz_left);
 
     // viz runner will update the visualization periodically
     let viz_runner = VizRunner {
         viz_left: Arc::new(Mutex::new(viz_left)),
         viz_right: Arc::new(Mutex::new(viz_right)),
-        output_settings: settings.output.clone(),
+        output_settings: shared_settings.output.clone(),
         is_stopped: Arc::new(AtomicBool::from(false)),
-        theme: settings.themes[0].clone(),
+        theme: shared_settings.themes[0].clone(),
         transformer: Arc::new(Mutex::new(transformer)),
     };
     viz_runner.start();
 
     eprintln!("Start server");
 
-    let host = settings.server_host.clone();
-    let port = settings.server_port.clone();
+    let host = shared_settings.server_host.clone();
+    let port = shared_settings.server_port.clone();
 
     let shared_viz_runner = Arc::new(Mutex::new(viz_runner)).clone();
-    let themes = settings.themes.clone();
+    let themes = shared_settings.themes.clone();
 
     HttpServer::new(move || {
         App::new()
@@ -117,6 +114,7 @@ async fn main() -> Result<()> {
                 viz_runner: shared_viz_runner.clone(),
                 themes: themes.clone(),
                 visualizations: visualizations.clone(),
+                settings: shared_settings.clone(),
             }))
             .configure(init)
             .service(

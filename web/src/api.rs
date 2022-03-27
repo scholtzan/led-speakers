@@ -1,4 +1,4 @@
-use crate::types::{Themes, Visualizations};
+use crate::types::{ChangeTheme, ChangeVisualization, Themes, Visualizations};
 
 use anyhow::Error;
 use yew::callback::Callback;
@@ -27,6 +27,28 @@ pub fn get_themes(callback: FetchCallback<Themes>) -> FetchTask {
     let req = Request::get(url("/api/theme"))
         .header("Content-Type", "application/json")
         .body(Nothing)
+        .unwrap();
+
+    FetchService::fetch(req, callback).unwrap()
+}
+
+pub fn update_visualization(new_viz: String, callback: FetchCallback<bool>) -> FetchTask {
+    let body = ChangeVisualization {
+        visualization: new_viz,
+    };
+    let req = Request::put(url("/api/visualization"))
+        .header("Content-Type", "application/json")
+        .body(Json(&body))
+        .unwrap();
+
+    FetchService::fetch(req, callback).unwrap()
+}
+
+pub fn update_theme(new_theme: String, callback: FetchCallback<bool>) -> FetchTask {
+    let body = ChangeTheme { theme: new_theme };
+    let req = Request::put(url("/api/theme"))
+        .header("Content-Type", "application/json")
+        .body(Json(&body))
         .unwrap();
 
     FetchService::fetch(req, callback).unwrap()
