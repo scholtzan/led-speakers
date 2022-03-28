@@ -1,4 +1,4 @@
-use crate::types::{Error, Theme, Themes, Visualization, Visualizations};
+use crate::types::{Color, Error, Theme, Themes, Visualization, Visualizations};
 
 use std::collections::VecDeque;
 use yew::format::Json;
@@ -144,7 +144,7 @@ impl Component for App {
             }
             Message::ChangeThemeSuccess(new_theme) => {
                 self.state.current_theme = new_theme;
-                false
+                true
             }
             Message::Error(err) => true,
         }
@@ -169,6 +169,15 @@ impl Component for App {
                 Message::Error(Error::Misc("Cannot change theme".to_string()))
             }
         });
+        let current_theme = self
+            .state
+            .themes
+            .iter()
+            .find(|theme| theme.name == self.state.current_theme);
+        let current_colors = match current_theme {
+            Some(theme) => theme.colors.clone(),
+            _ => Vec::new(),
+        };
 
         html! {
             <>
@@ -221,6 +230,11 @@ impl Component for App {
                                 </select>
                             </div>
                         </div>
+                        <div class="color-container">
+                        {
+                            for current_colors.iter().map(|color| self.view_color(&color))
+                        }
+                        </div>
                     </div>
                 </section>
             </div>
@@ -239,6 +253,12 @@ impl App {
             html! {
                 <option value=option_value.to_string()>{select_option}</option>
             }
+        }
+    }
+
+    fn view_color(&self, color: &Color) -> Html {
+        html! {
+            <span style=format!("border-radius: 50%; margin-top: 10px; margin-right: 10px; display: inline-block; height: 25px; width: 25px; background-color: rgb({:?}, {:?}, {:?})", color.r, color.g, color.b)></span>
         }
     }
 
