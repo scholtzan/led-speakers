@@ -1,4 +1,4 @@
-use actix_web::{get, http, put, web, App, Error, HttpResponse, HttpServer, Responder};
+use actix_web::{get, http, post, put, web, App, Error, HttpResponse, HttpServer, Responder};
 use dyn_clone::DynClone;
 use serde::{Deserialize, Deserializer, Serialize};
 use serde_json::Value;
@@ -30,12 +30,20 @@ struct ChangeTheme {
     pub theme: String,
 }
 
+#[derive(Serialize, Deserialize, Clone)]
+struct StatusResponse {
+    pub is_stopped: bool,
+}
+
 /// Initializes available routes
 pub fn init(cfg: &mut web::ServiceConfig) {
     cfg.service(get_viz);
     cfg.service(get_themes);
     cfg.service(update_visualization);
     cfg.service(update_theme);
+    cfg.service(turn_off);
+    cfg.service(turn_on);
+    cfg.service(get_status);
 }
 
 #[get("/api/visualization")]
@@ -100,4 +108,26 @@ async fn update_theme(
     } else {
         HttpResponse::Ok().json(false)
     }
+}
+
+#[post("/api/on")]
+async fn turn_on(data: web::Data<AppState>) -> impl Responder {
+    data.viz_runner.lock().unwrap().stop(false);
+    HttpResponse::Ok().json(true)
+}
+
+#[post("/api/off")]
+async fn turn_off(data: web::Data<AppState>) -> impl Responder {
+    data.viz_runner.lock().unwrap().stop(true);
+    HttpResponse::Ok().json(true)
+}
+
+#[get("/api/status")]
+async fn get_status(data: web::Data<AppState>) -> impl Responder {
+    // Return the current and available visualizations.
+    let current_viz = data.viz_runner.lock().unwrap();
+    let response = StatusResponse {
+        is_stopped: current_viz.is_stopped(),
+    };
+    HttpResponse::Ok().json(response)
 }

@@ -103,39 +103,45 @@ impl VizRunner {
             let mut left_output = output.left.to_led();
             let mut right_output = output.right.to_led();
 
-            while !stopped.load(Ordering::Relaxed) {
-                let colors = theme.lock().unwrap().colors.clone();
-                // update visualizations for left and right channel
-                let left_pixel_viz = left_viz.lock().unwrap().update(
-                    &transformer.lock().unwrap().left_bands.lock().unwrap(),
-                    &colors,
-                );
-                let right_pixel_viz = right_viz.lock().unwrap().update(
-                    &transformer.lock().unwrap().right_bands.lock().unwrap(),
-                    &colors,
-                );
+            while true {
+                if !stopped.load(Ordering::Relaxed) {
+                    let colors = theme.lock().unwrap().colors.clone();
+                    // update visualizations for left and right channel
+                    let left_pixel_viz = left_viz.lock().unwrap().update(
+                        &transformer.lock().unwrap().left_bands.lock().unwrap(),
+                        &colors,
+                    );
+                    let right_pixel_viz = right_viz.lock().unwrap().update(
+                        &transformer.lock().unwrap().right_bands.lock().unwrap(),
+                        &colors,
+                    );
 
-                // show pixel visualizations and apply multipliers
-                for (i, pixel_viz) in left_pixel_viz.iter().enumerate() {
-                    let color = colors[pixel_viz.color_index % colors.len()];
-                    left_output.set_pixel(
-                        i,
-                        ((color.r as f32) * pixel_viz.red_mul) as u8,
-                        ((color.g as f32) * pixel_viz.green_mul) as u8,
-                        ((color.b as f32) * pixel_viz.blue_mul) as u8,
-                        pixel_viz.brightness,
-                    )
-                }
+                    // show pixel visualizations and apply multipliers
+                    for (i, pixel_viz) in left_pixel_viz.iter().enumerate() {
+                        let color = colors[pixel_viz.color_index % colors.len()];
+                        left_output.set_pixel(
+                            i,
+                            ((color.r as f32) * pixel_viz.red_mul) as u8,
+                            ((color.g as f32) * pixel_viz.green_mul) as u8,
+                            ((color.b as f32) * pixel_viz.blue_mul) as u8,
+                            pixel_viz.brightness,
+                        )
+                    }
 
-                for (i, pixel_viz) in right_pixel_viz.iter().enumerate() {
-                    let color = colors[pixel_viz.color_index % colors.len()];
-                    right_output.set_pixel(
-                        i,
-                        ((color.r as f32) * pixel_viz.red_mul) as u8,
-                        ((color.g as f32) * pixel_viz.green_mul) as u8,
-                        ((color.b as f32) * pixel_viz.blue_mul) as u8,
-                        pixel_viz.brightness,
-                    )
+                    for (i, pixel_viz) in right_pixel_viz.iter().enumerate() {
+                        let color = colors[pixel_viz.color_index % colors.len()];
+                        right_output.set_pixel(
+                            i,
+                            ((color.r as f32) * pixel_viz.red_mul) as u8,
+                            ((color.g as f32) * pixel_viz.green_mul) as u8,
+                            ((color.b as f32) * pixel_viz.blue_mul) as u8,
+                            pixel_viz.brightness,
+                        )
+                    }
+                } else {
+                    // turn off LEDs of speakers
+                    left_output.clear();
+                    right_output.clear();
                 }
 
                 left_output.show();
@@ -145,8 +151,13 @@ impl VizRunner {
     }
 
     /// Stops the visualization from updating and running.
-    pub fn stop(&mut self) {
-        self.is_stopped = Arc::new(AtomicBool::from(false));
+    pub fn stop(&mut self, is_stopped: bool) {
+        self.is_stopped.swap(is_stopped, Ordering::Relaxed);
+    }
+
+    /// Return whether the viz processing has been stopped.
+    pub fn is_stopped(&self) -> bool {
+        self.is_stopped.clone().load(Ordering::Relaxed)
     }
 
     /// Sets the provided theme for the visualization.

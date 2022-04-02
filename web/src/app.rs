@@ -1,4 +1,4 @@
-use crate::types::{Color, Error, Theme, Themes, Visualization, Visualizations};
+use crate::types::{Color, Error, Status, Theme, Themes, Visualization, Visualizations};
 
 use std::collections::VecDeque;
 use yew::format::Json;
@@ -15,6 +15,8 @@ pub struct State {
 
     current_theme: String,
     themes: Vec<Theme>,
+
+    status: Status,
 }
 
 pub struct App {
@@ -26,8 +28,14 @@ pub struct App {
 pub enum Message {
     GetVisualizations,
     GetThemes,
+    GetStatus,
+    TurnOn,
+    TurnOff,
+    TurnOnSuccess,
+    TurnOffSuccess,
     GetVisualizationsSuccess(Visualizations),
     GetThemesSuccess(Themes),
+    GetStatusSuccess(Status),
     ChangeVisualization(String),
     ChangeTheme(String),
     ChangeVisualizationSuccess(String),
@@ -46,13 +54,17 @@ impl Component for App {
                 visualizations: Vec::new(),
                 current_theme: "".to_string(),
                 themes: Vec::new(),
+                status: Status { is_stopped: false },
             },
             tasks: VecDeque::with_capacity(10),
             link,
         };
 
-        app.link
-            .send_message_batch(vec![Message::GetVisualizations, Message::GetThemes]);
+        app.link.send_message_batch(vec![
+            Message::GetVisualizations,
+            Message::GetThemes,
+            Message::GetStatus,
+        ]);
         app
     }
 
@@ -97,9 +109,30 @@ impl Component for App {
                 self.queue_task(api::get_themes(handler));
                 true
             }
+            Message::GetStatus => {
+                let handler = self
+                    .link
+                    .callback(move |response: api::FetchResponse<Status>| {
+                        let (meta, Json(data)) = response.into_parts();
+                        match data {
+                            Ok(viz_info) => Message::GetStatusSuccess(viz_info),
+                            Err(err) => Message::Error(Error::FetchError(
+                                format!("Error getting status: {:?}", err.to_string()),
+                                meta,
+                            )),
+                        }
+                    });
+
+                self.queue_task(api::get_status(handler));
+                true
+            }
             Message::GetThemesSuccess(theme_info) => {
                 self.state.themes = theme_info.themes;
                 self.state.current_theme = theme_info.current;
+                true
+            }
+            Message::GetStatusSuccess(status) => {
+                self.state.status = status;
                 true
             }
             Message::ChangeVisualization(new_viz) => {
@@ -146,6 +179,48 @@ impl Component for App {
                 self.state.current_theme = new_theme;
                 true
             }
+            Message::TurnOff => {
+                let handler = self
+                    .link
+                    .callback(move |response: api::FetchResponse<bool>| {
+                        let (meta, Json(data)) = response.into_parts();
+                        match data {
+                            Ok(_) => Message::TurnOffSuccess,
+                            Err(err) => Message::Error(Error::FetchError(
+                                format!("Error turning off: {:?}", err.to_string()),
+                                meta,
+                            )),
+                        }
+                    });
+
+                self.queue_task(api::turn_off(handler));
+                true
+            }
+            Message::TurnOffSuccess => {
+                self.state.status.is_stopped = true;
+                true
+            }
+            Message::TurnOn => {
+                let handler = self
+                    .link
+                    .callback(move |response: api::FetchResponse<bool>| {
+                        let (meta, Json(data)) = response.into_parts();
+                        match data {
+                            Ok(_) => Message::TurnOnSuccess,
+                            Err(err) => Message::Error(Error::FetchError(
+                                format!("Error turning on: {:?}", err.to_string()),
+                                meta,
+                            )),
+                        }
+                    });
+
+                self.queue_task(api::turn_on(handler));
+                true
+            }
+            Message::TurnOnSuccess => {
+                self.state.status.is_stopped = false;
+                true
+            }
             Message::Error(err) => true,
         }
     }
@@ -178,6 +253,9 @@ impl Component for App {
             Some(theme) => theme.colors.clone(),
             _ => Vec::new(),
         };
+        let status = self.state.status.clone();
+        let turn_on = self.link.callback(|_| Message::TurnOn);
+        let turn_off = self.link.callback(|_| Message::TurnOff);
 
         html! {
             <>
@@ -192,9 +270,21 @@ impl Component for App {
                     <div class="navbar-end">
                         <div class="navbar-item">
                             <div class="buttons">
-                                <a class="button is-primary">
-                                <strong>{"Turn on"}</strong>
-                                </a>
+                            {
+                                if status.is_stopped {
+                                    html! {
+                                        <a class="button is-black" onclick=turn_on>
+                                        <strong>{"Turn on"}</strong>
+                                        </a>
+                                    }
+                                } else {
+                                    html! {
+                                        <a class="button is-primary" onclick=turn_off>
+                                        <strong>{"Turn off"}</strong>
+                                        </a>
+                                    }
+                                }
+                            }
                             </div>
                         </div>
                     </div>

@@ -1,4 +1,4 @@
-use crate::types::{ChangeTheme, ChangeVisualization, Themes, Visualizations};
+use crate::types::{ChangeTheme, ChangeVisualization, Status, Themes, Visualizations};
 
 use anyhow::Error;
 use yew::callback::Callback;
@@ -49,6 +49,33 @@ pub fn update_theme(new_theme: String, callback: FetchCallback<bool>) -> FetchTa
     let req = Request::put(url("/api/theme"))
         .header("Content-Type", "application/json")
         .body(Json(&body))
+        .unwrap();
+
+    FetchService::fetch(req, callback).unwrap()
+}
+
+pub fn get_status(callback: FetchCallback<Status>) -> FetchTask {
+    let req = Request::get(url("/api/status"))
+        .header("Content-Type", "application/json")
+        .body(Nothing)
+        .unwrap();
+
+    FetchService::fetch(req, callback).unwrap()
+}
+
+pub fn turn_on(callback: FetchCallback<bool>) -> FetchTask {
+    let req = Request::post(url("/api/on"))
+        .header("Content-Type", "application/json")
+        .body(Nothing)
+        .unwrap();
+
+    FetchService::fetch(req, callback).unwrap()
+}
+
+pub fn turn_off(callback: FetchCallback<bool>) -> FetchTask {
+    let req = Request::post(url("/api/off"))
+        .header("Content-Type", "application/json")
+        .body(Nothing)
         .unwrap();
 
     FetchService::fetch(req, callback).unwrap()

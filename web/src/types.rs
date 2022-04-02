@@ -70,3 +70,9 @@ pub struct ChangeTheme {
     /// Identifier of theme LED speakers should change to
     pub theme: String,
 }
+
+#[derive(Serialize, Deserialize, Clone, Debug)]
+pub struct Status {
+    /// Whether the viz processing is stopped
+    pub is_stopped: bool,
+}
