@@ -65,6 +65,66 @@ pub struct TransformerSettings {
     pub buffer_size: usize,
 }
 
+impl TransformerSettings {
+    /// Transform the settings into a map of string values.
+    pub fn to_map(&self) -> HashMap<String, String> {
+        let mut settings = HashMap::new();
+        settings.insert("sink".to_string(), self.sink.clone());
+        settings.insert("fft_len".to_string(), self.fft_len.to_string());
+        settings.insert("total_bands".to_string(), self.total_bands.to_string());
+        settings.insert("lower_cutoff".to_string(), self.lower_cutoff.to_string());
+        settings.insert("upper_cutoff".to_string(), self.upper_cutoff.to_string());
+        settings.insert("monstercat".to_string(), self.monstercat.to_string());
+        settings.insert("decay".to_string(), self.decay.to_string());
+        settings.insert("buffer_size".to_string(), self.buffer_size.to_string());
+        settings
+    }
+
+    pub fn from_map(settings: HashMap<String, String>) -> Self {
+        TransformerSettings {
+            sink: settings
+                .get(&"sink".to_string())
+                .unwrap_or(&"".to_string())
+                .to_string(),
+            fft_len: settings
+                .get(&"fft_len".to_string())
+                .unwrap_or(&"0".to_string())
+                .parse::<usize>()
+                .unwrap(),
+            total_bands: settings
+                .get(&"total_bands".to_string())
+                .unwrap_or(&"0".to_string())
+                .parse::<usize>()
+                .unwrap(),
+            lower_cutoff: settings
+                .get(&"lower_cutoff".to_string())
+                .unwrap_or(&"0".to_string())
+                .parse::<f32>()
+                .unwrap(),
+            upper_cutoff: settings
+                .get(&"upper_cutoff".to_string())
+                .unwrap_or(&"0".to_string())
+                .parse::<f32>()
+                .unwrap(),
+            monstercat: settings
+                .get(&"monstercat".to_string())
+                .unwrap_or(&"0".to_string())
+                .parse::<f32>()
+                .unwrap(),
+            decay: settings
+                .get(&"decay".to_string())
+                .unwrap_or(&"0".to_string())
+                .parse::<f32>()
+                .unwrap(),
+            buffer_size: settings
+                .get(&"buffer_size".to_string())
+                .unwrap_or(&"0".to_string())
+                .parse::<usize>()
+                .unwrap(),
+        }
+    }
+}
+
 #[derive(Serialize, Deserialize)]
 /// Representation of the config.json file.
 pub struct Settings {

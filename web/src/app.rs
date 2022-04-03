@@ -1,5 +1,7 @@
 use crate::types::{Color, Error, Status, Theme, Themes, Visualization, Visualizations};
 
+use log::info;
+use inflector::Inflector;
 use std::collections::VecDeque;
 use yew::format::Json;
 use yew::prelude::*;
@@ -19,7 +21,7 @@ pub struct State {
     themes: Vec<Theme>,
 
     status: Status,
-    transformer_settings: HashMap<String, String>,
+    advanced_settings: HashMap<String, String>,
 }
 
 pub struct App {
@@ -44,7 +46,7 @@ pub enum Message {
     ChangeVisualizationSuccess(String),
     ChangeThemeSuccess(String),
     GetAdvancedSettings,
-    ChangeAdvancedSettings,
+    ChangeAdvancedSetting(String, String),
     GetAdvancedSettingsSuccess(HashMap<String, String>),
     ChangeAdvancedSettingsSuccess,
     Error(Error),
@@ -62,6 +64,7 @@ impl Component for App {
                 current_theme: "".to_string(),
                 themes: Vec::new(),
                 status: Status { is_stopped: false },
+                advanced_settings: HashMap::new(),
             },
             tasks: VecDeque::with_capacity(10),
             link,
@@ -71,6 +74,7 @@ impl Component for App {
             Message::GetVisualizations,
             Message::GetThemes,
             Message::GetStatus,
+            Message::GetAdvancedSettings,
         ]);
         app
     }
@@ -228,7 +232,60 @@ impl Component for App {
                 self.state.status.is_stopped = false;
                 true
             }
-            Message::Error(err) => true,
+            Message::GetAdvancedSettings => {
+                log::info!("get: ");
+                let handler = self.link.callback(
+                    move |response: api::FetchResponse<HashMap<String, String>>| {
+                        let (meta, Json(data)) = response.into_parts();
+                        match data {
+                            Ok(settings) => Message::GetAdvancedSettingsSuccess(settings),
+                            Err(err) => Message::Error(Error::FetchError(
+                                format!("Error getting advanced settings: {:?}", err.to_string()),
+                                meta,
+                            )),
+                        }
+                    },
+                );
+
+                self.queue_task(api::get_advanced_settings(handler));
+                true
+            }
+            Message::GetAdvancedSettingsSuccess(settings) => {
+                self.state.advanced_settings = settings;
+
+                log::info!("Update: {:?}", self.state.advanced_settings);
+                true
+            }
+            Message::ChangeAdvancedSetting(key, value) => {
+                self.state.advanced_settings.insert(key, value);
+                let handler = self
+                    .link
+                    .callback(move |response: api::FetchResponse<bool>| {
+                        let (meta, Json(data)) = response.into_parts();
+                        match data {
+                            Ok(_) => Message::ChangeAdvancedSettingsSuccess,
+                            Err(err) => Message::Error(Error::FetchError(
+                                format!("Error changing advanced settings: {:?}", err.to_string()),
+                                meta,
+                            )),
+                        }
+                    });
+
+                self.queue_task(api::update_advanced_settings(
+                    self.state.advanced_settings.clone(),
+                    handler,
+                ));
+                false
+            }
+            Message::ChangeAdvancedSettingsSuccess => true,
+            Message::Error(err) => {
+                if let Error::FetchError(msg, _) = err {
+                    log::info!("Error {:?}", msg);
+                } else if let Error::Misc(msg) = err {
+                    log::info!("Error {:?}", msg);
+                }
+                true
+            },
         }
     }
 
@@ -263,6 +320,16 @@ impl Component for App {
         let status = self.state.status.clone();
         let turn_on = self.link.callback(|_| Message::TurnOn);
         let turn_off = self.link.callback(|_| Message::TurnOff);
+        let on_advanced_setting_changed = |setting: String| {
+            let setting = setting.clone();
+            self.link.callback(move |e: ChangeData| {
+                if let ChangeData::Value(val) = e {
+                    Message::ChangeAdvancedSetting(setting.clone(), val)
+                } else {
+                    Message::Error(Error::Misc("Cannot change settings".to_string()))
+                }
+            })
+        };
 
         html! {
             <>
@@ -334,8 +401,18 @@ impl Component for App {
                         </div>
                     </div>
                 </section>
-                <section>
+                <section class="section">
                     <h2 class="subtitle">{"Advanced Settings"}</h2>
+                    {
+                        for self.state.advanced_settings.iter().map(|(key, val)| {
+                            html! {
+                                <div class="field">
+                                    <label class="label">{key.replace("_", ".").to_title_case()}</label>
+                                    <input class="input" type="text" value={val.to_string()} onchange=on_advanced_setting_changed(key.to_string()) />
+                                </div>
+                            }
+                        })
+                    }
                 </section>
             </div>
             </>

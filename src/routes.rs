@@ -47,6 +47,7 @@ pub fn init(cfg: &mut web::ServiceConfig) {
     cfg.service(turn_on);
     cfg.service(get_status);
     cfg.service(get_transformer_settings);
+    cfg.service(update_transformer_settings);
 }
 
 #[get("/api/visualization")]
@@ -140,18 +141,22 @@ async fn get_status(data: web::Data<AppState>) -> impl Responder {
 async fn get_transformer_settings(data: web::Data<AppState>) -> impl Responder {
     // Return the current settings.
     let settings = data.settings.lock().unwrap().transformer.clone();
-    HttpResponse::Ok().json(settings)
+    HttpResponse::Ok().json(settings.to_map())
 }
 
 #[put("/api/settings")]
 async fn update_transformer_settings(
-    new_settings: web::Json<TransformerSettings>,
+    new_settings: web::Json<HashMap<String, String>>,
     data: web::Data<AppState>,
 ) -> impl Responder {
+    let transformer_settings = TransformerSettings::from_map(new_settings.into_inner());
     data.settings
         .lock()
         .unwrap()
-        .apply_transformer_settings(new_settings.into_inner());
-    data.viz_runner.lock().unwrap().restart();
+        .apply_transformer_settings(transformer_settings.clone());
+    data.viz_runner
+        .lock()
+        .unwrap()
+        .update_transformer_settings(transformer_settings);
     HttpResponse::Ok().json(true)
 }

@@ -10,6 +10,8 @@ use yew::prelude::*;
 #[macro_use]
 extern crate dotenv_codegen;
 
+extern crate inflector;
+
 #[wasm_bindgen(start)]
 pub fn run_app() {
     App::<app::App>::new().mount_to_body();

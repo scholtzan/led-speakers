@@ -61,9 +61,8 @@ async fn main() -> Result<()> {
 
     // new audio transformer instance from settings
     // has access to audio stream
-    let mut transformer = AudioTransformer::new(Arc::new(Mutex::new(
-        shared_settings.clone().lock().unwrap().transformer.clone(),
-    )));
+    let mut transformer =
+        AudioTransformer::new(shared_settings.clone().lock().unwrap().transformer.clone());
     transformer.start();
 
     // instantiate visualization
@@ -71,20 +70,20 @@ async fn main() -> Result<()> {
     viz_left.set_total_pixels(shared_settings.lock().unwrap().output.left.total_leds as usize);
     let mut viz_right = dyn_clone::clone_box(&*viz_left);
 
+    let output_settings = shared_settings.lock().unwrap().output.clone();
+    let theme = shared_settings.lock().unwrap().themes[0].clone();
+
     // viz runner will update the visualization periodically
     let mut viz_runner = VizRunner {
         viz_left: Arc::new(Mutex::new(viz_left)),
         viz_right: Arc::new(Mutex::new(viz_right)),
-        output_settings: shared_settings.lock().unwrap().output.clone(),
+        output_settings: output_settings,
         is_stopped: Arc::new(AtomicBool::from(false)),
-        theme: Arc::new(Mutex::new(
-            shared_settings.lock().unwrap().themes[0].clone(),
-        )),
+        theme: Arc::new(Mutex::new(theme)),
         transformer: Arc::new(Mutex::new(transformer)),
     };
-    viz_runner.start();
 
-    eprintln!("Start server");
+    viz_runner.start();
 
     let host = shared_settings.lock().unwrap().server_host.clone();
     let port = shared_settings.lock().unwrap().server_port.clone();

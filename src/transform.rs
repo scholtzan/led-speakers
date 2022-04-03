@@ -47,7 +47,7 @@ pub struct AudioTransformer {
     /// Handle on the thread running the audio transformation
     handle: Option<JoinHandle<()>>,
 
-    settings: Arc<Mutex<TransformerSettings>>,
+    settings: TransformerSettings,
 
     /// Whether the audio transformer is still running
     killed: Arc<AtomicBool>,
@@ -65,13 +65,13 @@ impl AudioTransformer {
     /// # Arguments
     /// * `settings`: transformer settings
     ///
-    pub fn new(settings: Arc<Mutex<TransformerSettings>>) -> AudioTransformer {
+    pub fn new(settings: TransformerSettings) -> AudioTransformer {
         let transformer = AudioTransformer {
             handle: None,
             settings: settings.clone(),
             killed: Arc::new(AtomicBool::from(false)),
-            left_bands: Arc::new(Mutex::new(vec![0.0; settings.lock().unwrap().total_bands])),
-            right_bands: Arc::new(Mutex::new(vec![0.0; settings.lock().unwrap().total_bands])),
+            left_bands: Arc::new(Mutex::new(vec![0.0; settings.total_bands])),
+            right_bands: Arc::new(Mutex::new(vec![0.0; settings.total_bands])),
         };
 
         transformer
@@ -90,45 +90,40 @@ impl AudioTransformer {
             // initialize audio stream
             let audio = AudioStream::new(
                 "led speakers".to_string(),
-                settings.lock().unwrap().sink.clone(),
-                settings.lock().unwrap().buffer_size,
+                settings.sink.clone(),
+                settings.buffer_size,
             );
 
             // instance to compute forward FFTs
             let mut planner = FftPlanner::new();
-            let fft = planner.plan_fft_forward(settings.lock().unwrap().fft_len);
+            let fft = planner.plan_fft_forward(settings.fft_len);
 
             // audio buffer
             let buffer = audio.buffer.unwrap();
 
             // audio inputs for FFT for left and right channel
-            let mut left: Vec<Complex<f32>> = vec![Zero::zero(); settings.lock().unwrap().fft_len];
-            let mut right: Vec<Complex<f32>> = vec![Zero::zero(); settings.lock().unwrap().fft_len];
+            let mut left: Vec<Complex<f32>> = vec![Zero::zero(); settings.fft_len];
+            let mut right: Vec<Complex<f32>> = vec![Zero::zero(); settings.fft_len];
 
             // transformed audio for each channel
-            let mut left_transformed = TransformedAudio::new(
-                settings.lock().unwrap().total_bands,
-                settings.lock().unwrap().fft_len,
-            );
-            let mut right_transformed = TransformedAudio::new(
-                settings.lock().unwrap().total_bands,
-                settings.lock().unwrap().fft_len,
-            );
+            let mut left_transformed =
+                TransformedAudio::new(settings.total_bands, settings.fft_len);
+            let mut right_transformed =
+                TransformedAudio::new(settings.total_bands, settings.fft_len);
 
             // get bytes per audio frame
             let byte_rate = *(*audio.rate).lock().unwrap();
             let target_bytes_per_frame = (byte_rate / 60) as usize;
 
             // number of bytes required as FFT input
-            let fft_byte_len: usize = settings.lock().unwrap().fft_len * 4;
+            let fft_byte_len: usize = settings.fft_len * 4;
 
             // data gets written into this temporary buffer from the audio buffer
-            let mut stream_buf = BytesMut::with_capacity(
-                target_bytes_per_frame * 6 + 32 * settings.lock().unwrap().fft_len,
-            );
+            let mut stream_buf =
+                BytesMut::with_capacity(target_bytes_per_frame * 6 + 32 * settings.fft_len);
 
             // input buffer for FFT
-            let mut fft_input_buffer: Vec<i16> = vec![0; settings.lock().unwrap().fft_len * 2];
+            let mut fft_input_buffer: Vec<i16> = vec![0; settings.fft_len * 2];
 
             // factor used to normalize input samples
             let norm = 1.0 / (i16::max_value() as f32);
@@ -196,13 +191,13 @@ impl AudioTransformer {
                 *(left_bands.lock().unwrap()) = Self::frequency_magnitudes(
                     left_real,
                     &mut left_transformed,
-                    settings.lock().unwrap().lower_cutoff,
-                    settings.lock().unwrap().upper_cutoff,
-                    settings.lock().unwrap().total_bands,
+                    settings.lower_cutoff,
+                    settings.upper_cutoff,
+                    settings.total_bands,
                     byte_rate,
-                    settings.lock().unwrap().fft_len,
-                    settings.lock().unwrap().monstercat,
-                    settings.lock().unwrap().decay,
+                    settings.fft_len,
+                    settings.monstercat,
+                    settings.decay,
                 );
 
                 // FFT for right channel
@@ -218,13 +213,13 @@ impl AudioTransformer {
                 *(right_bands.lock().unwrap()) = Self::frequency_magnitudes(
                     right_real,
                     &mut right_transformed,
-                    settings.lock().unwrap().lower_cutoff,
-                    settings.lock().unwrap().upper_cutoff,
-                    settings.lock().unwrap().total_bands,
+                    settings.lower_cutoff,
+                    settings.upper_cutoff,
+                    settings.total_bands,
                     byte_rate,
-                    settings.lock().unwrap().fft_len,
-                    settings.lock().unwrap().monstercat,
-                    settings.lock().unwrap().decay,
+                    settings.fft_len,
+                    settings.monstercat,
+                    settings.decay,
                 );
             }
         }));
@@ -234,8 +229,13 @@ impl AudioTransformer {
     ///
     /// Required when applying new settings.
     ///
-    pub fn restart(&mut self) {
+    pub fn update_settings(&mut self, settings: TransformerSettings) {
         self.killed.swap(true, Ordering::Relaxed);
+        self.settings = settings.clone();
+        *self.left_bands.lock().unwrap() = vec![0.0; settings.total_bands];
+        *self.right_bands.lock().unwrap() = vec![0.0; settings.total_bands];
+        self.handle = None;
+        self.killed.swap(false, Ordering::Relaxed);
         self.start();
     }
 

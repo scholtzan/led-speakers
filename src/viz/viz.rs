@@ -5,7 +5,7 @@ use std::sync::{Arc, Mutex};
 use std::thread;
 use std::thread::JoinHandle;
 
-use crate::settings::OutputSettings;
+use crate::settings::{OutputSettings, TransformerSettings};
 use crate::theme::Color;
 use crate::theme::Theme;
 use crate::transform::AudioTransformer;
@@ -151,8 +151,8 @@ impl VizRunner {
     }
 
     /// Restart the transformer, which will also restart the viz.
-    pub fn restart(&mut self) {
-        self.transformer.lock().unwrap().restart();
+    pub fn update_transformer_settings(&mut self, settings: TransformerSettings) {
+        self.transformer.lock().unwrap().update_settings(settings);
     }
 
     /// Stops the visualization from updating and running.

@@ -1,6 +1,8 @@
 use crate::types::{ChangeTheme, ChangeVisualization, Status, Themes, Visualizations};
 
+use log::info;
 use anyhow::Error;
+use std::collections::HashMap;
 use yew::callback::Callback;
 use yew::format::{Json, Nothing};
 use yew::services::fetch::{Credentials, FetchOptions, FetchService, FetchTask, Request, Response};
@@ -76,6 +78,27 @@ pub fn turn_off(callback: FetchCallback<bool>) -> FetchTask {
     let req = Request::post(url("/api/off"))
         .header("Content-Type", "application/json")
         .body(Nothing)
+        .unwrap();
+
+    FetchService::fetch(req, callback).unwrap()
+}
+
+pub fn get_advanced_settings(callback: FetchCallback<HashMap<String, String>>) -> FetchTask {
+    let req = Request::get(url("/api/settings"))
+        .header("Content-Type", "application/json")
+        .body(Nothing)
+        .unwrap();
+
+    FetchService::fetch(req, callback).unwrap()
+}
+
+pub fn update_advanced_settings(
+    settings: HashMap<String, String>,
+    callback: FetchCallback<bool>,
+) -> FetchTask {
+    let req = Request::put(url("/api/settings"))
+        .header("Content-Type", "application/json")
+        .body(Json(&settings))
         .unwrap();
 
     FetchService::fetch(req, callback).unwrap()
