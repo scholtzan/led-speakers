@@ -7,6 +7,8 @@ use yew::services::fetch::StatusCode;
 use yew::services::fetch::{FetchService, FetchTask};
 use yew::{html, Component, Html, Properties};
 
+use std::collections::HashMap;
+
 use crate::api;
 
 pub struct State {
@@ -17,6 +19,7 @@ pub struct State {
     themes: Vec<Theme>,
 
     status: Status,
+    transformer_settings: HashMap<String, String>,
 }
 
 pub struct App {
@@ -40,6 +43,10 @@ pub enum Message {
     ChangeTheme(String),
     ChangeVisualizationSuccess(String),
     ChangeThemeSuccess(String),
+    GetAdvancedSettings,
+    ChangeAdvancedSettings,
+    GetAdvancedSettingsSuccess(HashMap<String, String>),
+    ChangeAdvancedSettingsSuccess,
     Error(Error),
 }
 
@@ -326,6 +333,9 @@ impl Component for App {
                         }
                         </div>
                     </div>
+                </section>
+                <section>
+                    <h2 class="subtitle">{"Advanced Settings"}</h2>
                 </section>
             </div>
             </>

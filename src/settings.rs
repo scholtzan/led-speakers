@@ -9,6 +9,7 @@ use crate::viz::{
     RotatingViz, RotatingVizConfig, SolidBeatViz, SolidBeatVizConfig, SolidViz, SolidVizConfig,
     SparkleViz, SparkleVizConfig, Viz,
 };
+use std::collections::HashMap;
 
 #[derive(Serialize, Deserialize, Clone)]
 /// Settings for a single output
@@ -37,19 +38,8 @@ pub struct OutputSettings {
     pub right: Output,
 }
 
-#[derive(Serialize, Deserialize)]
-/// Representation of the config.json file.
-pub struct Settings {
-    #[serde(deserialize_with = "parse_visualizations")]
-    /// Available visualizations
-    pub visualizations: Vec<Box<dyn Viz>>,
-
-    /// Output settings
-    pub output: OutputSettings,
-
-    /// Available themes
-    pub themes: Vec<Theme>,
-
+#[derive(Serialize, Deserialize, Clone)]
+pub struct TransformerSettings {
     /// Audio sink name
     pub sink: String,
 
@@ -73,12 +63,35 @@ pub struct Settings {
 
     /// Audio buffer size
     pub buffer_size: usize,
+}
+
+#[derive(Serialize, Deserialize)]
+/// Representation of the config.json file.
+pub struct Settings {
+    #[serde(deserialize_with = "parse_visualizations")]
+    /// Available visualizations
+    pub visualizations: Vec<Box<dyn Viz>>,
+
+    /// Output settings
+    pub output: OutputSettings,
+
+    /// Available themes
+    pub themes: Vec<Theme>,
+
+    pub transformer: TransformerSettings,
 
     /// Server host IP
     pub server_host: String,
 
     /// Server host port
     pub server_port: String,
+}
+
+impl Settings {
+    /// Update the transformer related settings.
+    pub fn apply_transformer_settings(&mut self, transformer_settings: TransformerSettings) {
+        self.transformer = transformer_settings;
+    }
 }
 
 /// Creates a new visualization from the settings.

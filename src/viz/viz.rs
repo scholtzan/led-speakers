@@ -150,6 +150,11 @@ impl VizRunner {
         }));
     }
 
+    /// Restart the transformer, which will also restart the viz.
+    pub fn restart(&mut self) {
+        self.transformer.lock().unwrap().restart();
+    }
+
     /// Stops the visualization from updating and running.
     pub fn stop(&mut self, is_stopped: bool) {
         self.is_stopped.swap(is_stopped, Ordering::Relaxed);

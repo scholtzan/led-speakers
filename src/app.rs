@@ -19,5 +19,5 @@ pub struct AppState {
     pub viz_runner: Arc<Mutex<VizRunner>>,
     pub themes: Vec<Theme>,
     pub visualizations: Vec<Visualization>,
-    pub settings: Arc<Settings>,
+    pub settings: Arc<Mutex<Settings>>,
 }

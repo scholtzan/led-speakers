@@ -13,6 +13,7 @@ use std::thread::JoinHandle;
 use std::time;
 
 use crate::audio::AudioStream;
+use crate::settings::TransformerSettings;
 
 /// Audio stream transformed into frequency bands.
 pub struct TransformedAudio {
@@ -46,29 +47,7 @@ pub struct AudioTransformer {
     /// Handle on the thread running the audio transformation
     handle: Option<JoinHandle<()>>,
 
-    /// Name of the audio sink
-    sink: String,
-
-    /// Length of FFT
-    fft_len: usize,
-
-    /// Total number of frequency bands
-    total_bands: usize,
-
-    /// Upper cutoff frequency
-    upper_cutoff: f32,
-
-    /// Lower cutoff frequency
-    lower_cutoff: f32,
-
-    /// Factor for monstercat smoothing
-    monstercat: f32,
-
-    /// Frequency magnitude decay factor
-    decay: f32,
-
-    /// Size of the audio buffer
-    buffer_size: usize,
+    settings: Arc<Mutex<TransformerSettings>>,
 
     /// Whether the audio transformer is still running
     killed: Arc<AtomicBool>,
@@ -84,38 +63,15 @@ impl AudioTransformer {
     /// Instantiates a new `AudioTransformer`.
     ///
     /// # Arguments
-    /// * `sink`: name of the audio sink audio is streamed from
-    /// * `fft_len`: length of the FFT input
-    /// * `total_bands`: total number of generated frequency bands
-    /// * `lower_cutoff`: lower cutoff frequency
-    /// * `upper_cutoff`: upper cutoff frequency
-    /// * `monstercat`: factor for monstercat smoothing
-    /// * `decay`: frequency magnitude decay factor
-    /// * `buffer_size`: size of the audio buffer
+    /// * `settings`: transformer settings
     ///
-    pub fn new(
-        sink: String,
-        fft_len: usize,
-        total_bands: usize,
-        lower_cutoff: f32,
-        upper_cutoff: f32,
-        monstercat: f32,
-        decay: f32,
-        buffer_size: usize,
-    ) -> AudioTransformer {
+    pub fn new(settings: Arc<Mutex<TransformerSettings>>) -> AudioTransformer {
         let transformer = AudioTransformer {
             handle: None,
-            sink,
-            fft_len,
-            total_bands,
-            upper_cutoff,
-            lower_cutoff,
-            monstercat,
-            decay,
-            buffer_size,
+            settings: settings.clone(),
             killed: Arc::new(AtomicBool::from(false)),
-            left_bands: Arc::new(Mutex::new(vec![0.0; total_bands])),
-            right_bands: Arc::new(Mutex::new(vec![0.0; total_bands])),
+            left_bands: Arc::new(Mutex::new(vec![0.0; settings.lock().unwrap().total_bands])),
+            right_bands: Arc::new(Mutex::new(vec![0.0; settings.lock().unwrap().total_bands])),
         };
 
         transformer
@@ -124,50 +80,55 @@ impl AudioTransformer {
     /// Start transforming audio into frequency bands.
     pub fn start(&mut self) {
         // make fields available in thread
-        let fft_len = self.fft_len;
-        let total_bands = self.total_bands;
-        let lower_cutoff = self.lower_cutoff;
-        let upper_cutoff = self.upper_cutoff;
-        let monstercat = self.monstercat;
-        let decay = self.decay;
-        let sink = self.sink.clone();
+        let settings = self.settings.clone();
         let killed = self.killed.clone();
         let right_bands = self.right_bands.clone();
         let left_bands = self.left_bands.clone();
-        let buffer_size = self.buffer_size;
 
         // transform audio in separate thread
         self.handle = Some(thread::spawn(move || {
             // initialize audio stream
-            let audio = AudioStream::new("led speakers".to_string(), sink, buffer_size);
+            let audio = AudioStream::new(
+                "led speakers".to_string(),
+                settings.lock().unwrap().sink.clone(),
+                settings.lock().unwrap().buffer_size,
+            );
 
             // instance to compute forward FFTs
             let mut planner = FftPlanner::new();
-            let fft = planner.plan_fft_forward(fft_len);
+            let fft = planner.plan_fft_forward(settings.lock().unwrap().fft_len);
 
             // audio buffer
             let buffer = audio.buffer.unwrap();
 
             // audio inputs for FFT for left and right channel
-            let mut left: Vec<Complex<f32>> = vec![Zero::zero(); fft_len];
-            let mut right: Vec<Complex<f32>> = vec![Zero::zero(); fft_len];
+            let mut left: Vec<Complex<f32>> = vec![Zero::zero(); settings.lock().unwrap().fft_len];
+            let mut right: Vec<Complex<f32>> = vec![Zero::zero(); settings.lock().unwrap().fft_len];
 
             // transformed audio for each channel
-            let mut left_transformed = TransformedAudio::new(total_bands, fft_len);
-            let mut right_transformed = TransformedAudio::new(total_bands, fft_len);
+            let mut left_transformed = TransformedAudio::new(
+                settings.lock().unwrap().total_bands,
+                settings.lock().unwrap().fft_len,
+            );
+            let mut right_transformed = TransformedAudio::new(
+                settings.lock().unwrap().total_bands,
+                settings.lock().unwrap().fft_len,
+            );
 
             // get bytes per audio frame
             let byte_rate = *(*audio.rate).lock().unwrap();
             let target_bytes_per_frame = (byte_rate / 60) as usize;
 
             // number of bytes required as FFT input
-            let fft_byte_len: usize = fft_len * 4;
+            let fft_byte_len: usize = settings.lock().unwrap().fft_len * 4;
 
             // data gets written into this temporary buffer from the audio buffer
-            let mut stream_buf = BytesMut::with_capacity(target_bytes_per_frame * 6 + 32 * fft_len);
+            let mut stream_buf = BytesMut::with_capacity(
+                target_bytes_per_frame * 6 + 32 * settings.lock().unwrap().fft_len,
+            );
 
             // input buffer for FFT
-            let mut fft_input_buffer: Vec<i16> = vec![0; fft_len * 2];
+            let mut fft_input_buffer: Vec<i16> = vec![0; settings.lock().unwrap().fft_len * 2];
 
             // factor used to normalize input samples
             let norm = 1.0 / (i16::max_value() as f32);
@@ -235,13 +196,13 @@ impl AudioTransformer {
                 *(left_bands.lock().unwrap()) = Self::frequency_magnitudes(
                     left_real,
                     &mut left_transformed,
-                    lower_cutoff,
-                    upper_cutoff,
-                    total_bands,
+                    settings.lock().unwrap().lower_cutoff,
+                    settings.lock().unwrap().upper_cutoff,
+                    settings.lock().unwrap().total_bands,
                     byte_rate,
-                    fft_len,
-                    monstercat,
-                    decay,
+                    settings.lock().unwrap().fft_len,
+                    settings.lock().unwrap().monstercat,
+                    settings.lock().unwrap().decay,
                 );
 
                 // FFT for right channel
@@ -257,16 +218,25 @@ impl AudioTransformer {
                 *(right_bands.lock().unwrap()) = Self::frequency_magnitudes(
                     right_real,
                     &mut right_transformed,
-                    lower_cutoff,
-                    upper_cutoff,
-                    total_bands,
+                    settings.lock().unwrap().lower_cutoff,
+                    settings.lock().unwrap().upper_cutoff,
+                    settings.lock().unwrap().total_bands,
                     byte_rate,
-                    fft_len,
-                    monstercat,
-                    decay,
+                    settings.lock().unwrap().fft_len,
+                    settings.lock().unwrap().monstercat,
+                    settings.lock().unwrap().decay,
                 );
             }
         }));
+    }
+
+    /// Restart the transformer.
+    ///
+    /// Required when applying new settings.
+    ///
+    pub fn restart(&mut self) {
+        self.killed.swap(true, Ordering::Relaxed);
+        self.start();
     }
 
     /// Compute frequency bands and magnitudes.

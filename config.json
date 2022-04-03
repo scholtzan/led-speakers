@@ -70,14 +70,16 @@
             ]    
         }
     ],
-    "sink": "alsa_output.usb-Generic_USB2.0_Device_20170726905959-00.analog-stereo",
-    "fft_len": 3000,
-    "total_bands": 6,
-    "lower_cutoff": 50.0,
-    "upper_cutoff": 10000.0,
-    "monstercat": 50.0,
-    "decay": 10.0,
-    "buffer_size": 65535,
+    "transformer": {
+        "sink": "alsa_output.usb-Generic_USB2.0_Device_20170726905959-00.analog-stereo",
+        "fft_len": 3000,
+        "total_bands": 6,
+        "lower_cutoff": 50.0,
+        "upper_cutoff": 10000.0,
+        "monstercat": 50.0,
+        "decay": 10.0,
+        "buffer_size": 65535
+    },
     "server_host": "127.0.0.1",
     "server_port": "8000"
 }

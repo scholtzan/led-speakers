@@ -2,9 +2,11 @@ use actix_web::{get, http, post, put, web, App, Error, HttpResponse, HttpServer,
 use dyn_clone::DynClone;
 use serde::{Deserialize, Deserializer, Serialize};
 use serde_json::Value;
+use std::collections::HashMap;
 use std::sync::{Arc, Mutex, Weak};
 
 use crate::app::{AppState, Visualization};
+use crate::settings::TransformerSettings;
 use crate::theme::Theme;
 use crate::viz::Viz;
 
@@ -44,6 +46,7 @@ pub fn init(cfg: &mut web::ServiceConfig) {
     cfg.service(turn_off);
     cfg.service(turn_on);
     cfg.service(get_status);
+    cfg.service(get_transformer_settings);
 }
 
 #[get("/api/visualization")]
@@ -78,13 +81,14 @@ async fn update_visualization(
     new_visualization: web::Json<ChangeVisualization>,
     data: web::Data<AppState>,
 ) -> impl Responder {
-    let new_viz: Option<&Box<dyn Viz>> = data
+    if let Some(viz) = data
         .settings
+        .lock()
+        .unwrap()
         .visualizations
         .iter()
-        .find(|&v| v.get_name() == new_visualization.visualization);
-
-    if let Some(viz) = new_viz {
+        .find(|&v| v.get_name() == new_visualization.visualization)
+    {
         data.viz_runner
             .lock()
             .unwrap()
@@ -130,4 +134,24 @@ async fn get_status(data: web::Data<AppState>) -> impl Responder {
         is_stopped: current_viz.is_stopped(),
     };
     HttpResponse::Ok().json(response)
+}
+
+#[get("/api/settings")]
+async fn get_transformer_settings(data: web::Data<AppState>) -> impl Responder {
+    // Return the current settings.
+    let settings = data.settings.lock().unwrap().transformer.clone();
+    HttpResponse::Ok().json(settings)
+}
+
+#[put("/api/settings")]
+async fn update_transformer_settings(
+    new_settings: web::Json<TransformerSettings>,
+    data: web::Data<AppState>,
+) -> impl Responder {
+    data.settings
+        .lock()
+        .unwrap()
+        .apply_transformer_settings(new_settings.into_inner());
+    data.viz_runner.lock().unwrap().restart();
+    HttpResponse::Ok().json(true)
 }

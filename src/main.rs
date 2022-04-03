@@ -45,9 +45,10 @@ async fn main() -> Result<()> {
     conf.merge(config::File::with_name(CONFIG)).unwrap();
 
     let settings: Settings = conf.try_into().unwrap();
-    let shared_settings = Arc::new(settings).clone();
+    let shared_settings = Arc::new(Mutex::new(settings)).clone();
     let visualizations = shared_settings
-        .clone()
+        .lock()
+        .unwrap()
         .visualizations
         .iter()
         .map(|v| Visualization {
@@ -60,41 +61,36 @@ async fn main() -> Result<()> {
 
     // new audio transformer instance from settings
     // has access to audio stream
-    let mut transformer = AudioTransformer::new(
-        shared_settings.sink.clone(),
-        shared_settings.fft_len,
-        shared_settings.total_bands,
-        shared_settings.lower_cutoff,
-        shared_settings.upper_cutoff,
-        shared_settings.monstercat,
-        shared_settings.decay,
-        shared_settings.buffer_size,
-    );
+    let mut transformer = AudioTransformer::new(Arc::new(Mutex::new(
+        shared_settings.clone().lock().unwrap().transformer.clone(),
+    )));
     transformer.start();
 
     // instantiate visualization
-    let mut viz_left = dyn_clone::clone_box(&*shared_settings.visualizations[0]);
-    viz_left.set_total_pixels(shared_settings.output.left.total_leds as usize);
+    let mut viz_left = dyn_clone::clone_box(&*shared_settings.lock().unwrap().visualizations[0]);
+    viz_left.set_total_pixels(shared_settings.lock().unwrap().output.left.total_leds as usize);
     let mut viz_right = dyn_clone::clone_box(&*viz_left);
 
     // viz runner will update the visualization periodically
     let mut viz_runner = VizRunner {
         viz_left: Arc::new(Mutex::new(viz_left)),
         viz_right: Arc::new(Mutex::new(viz_right)),
-        output_settings: shared_settings.output.clone(),
+        output_settings: shared_settings.lock().unwrap().output.clone(),
         is_stopped: Arc::new(AtomicBool::from(false)),
-        theme: Arc::new(Mutex::new(shared_settings.themes[0].clone())),
+        theme: Arc::new(Mutex::new(
+            shared_settings.lock().unwrap().themes[0].clone(),
+        )),
         transformer: Arc::new(Mutex::new(transformer)),
     };
     viz_runner.start();
 
     eprintln!("Start server");
 
-    let host = shared_settings.server_host.clone();
-    let port = shared_settings.server_port.clone();
+    let host = shared_settings.lock().unwrap().server_host.clone();
+    let port = shared_settings.lock().unwrap().server_port.clone();
 
     let shared_viz_runner = Arc::new(Mutex::new(viz_runner)).clone();
-    let themes = shared_settings.themes.clone();
+    let themes = shared_settings.lock().unwrap().themes.clone();
 
     HttpServer::new(move || {
         App::new()
