@@ -1,5 +1,6 @@
 use dyn_clone::DynClone;
 use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
 use std::thread;
@@ -25,7 +26,11 @@ pub trait Viz: DynClone + Sync + Send {
     /// Sets the number of total available pizels.
     fn set_total_pixels(&mut self, pixels: usize);
 
-    // todo: get_settings()
+    /// Updates the settings.
+    fn update_settings(&mut self, settings: HashMap<String, String>);
+
+    /// Returns the viz settings as map.
+    fn get_settings(&self) -> HashMap<String, String>;
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -153,6 +158,15 @@ impl VizRunner {
     /// Restart the transformer, which will also restart the viz.
     pub fn update_transformer_settings(&mut self, settings: TransformerSettings) {
         self.transformer.lock().unwrap().update_settings(settings);
+    }
+
+    /// Update the settings for the current visualization and restart.
+    pub fn update_viz_settings(&mut self, settings: HashMap<String, String>) {
+        self.viz_right
+            .lock()
+            .unwrap()
+            .update_settings(settings.clone());
+        self.viz_left.lock().unwrap().update_settings(settings);
     }
 
     /// Stops the visualization from updating and running.

@@ -5,14 +5,39 @@ use crate::viz::PixelViz;
 use crate::viz::Viz;
 use chrono::prelude::*;
 use chrono::Duration;
-
 use rand::{distributions::Uniform, Rng};
+use std::collections::HashMap;
 
 #[derive(Serialize, Deserialize, Debug, PartialEq, Clone)]
 pub struct RotatingVizConfig {
     pub pretty_name: String,
     pub speed: f32,   // pixels per second
     pub falloff: f32, // factor of how much brightness is reduced
+}
+
+impl RotatingVizConfig {
+    pub fn to_map(&self) -> HashMap<String, String> {
+        let mut settings = HashMap::new();
+        settings.insert("speed".to_string(), self.speed.to_string());
+        settings.insert("falloff".to_string(), self.falloff.to_string());
+        settings
+    }
+
+    pub fn from_map(name: String, settings: HashMap<String, String>) -> Self {
+        Self {
+            pretty_name: name,
+            falloff: settings
+                .get(&"falloff".to_string())
+                .unwrap_or(&"0".to_string())
+                .parse::<f32>()
+                .unwrap(),
+            speed: settings
+                .get(&"speed".to_string())
+                .unwrap_or(&"0".to_string())
+                .parse::<f32>()
+                .unwrap(),
+        }
+    }
 }
 
 #[derive(Serialize, Deserialize, Clone)]
@@ -204,6 +229,18 @@ impl Viz for RotatingViz {
         self.total_pixels = pixels;
         self.pixels = vec![None; pixels];
         self.falloffs = vec![0.0; pixels];
+    }
+
+    fn get_settings(&self) -> HashMap<String, String> {
+        self.config.to_map()
+    }
+
+    fn update_settings(&mut self, settings: HashMap<String, String>) {
+        let new_settings =
+            RotatingVizConfig::from_map(self.get_pretty_name().to_string(), settings);
+        self.config = new_settings;
+        self.pixels = vec![None; self.total_pixels];
+        self.falloffs = vec![0.0; self.total_pixels];
     }
 }
 

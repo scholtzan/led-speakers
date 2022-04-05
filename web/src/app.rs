@@ -407,9 +407,8 @@ impl Component for App {
 
             <div class="container">
                 <section class="section">
-                    <h2 class="subtitle">{"Settings"}</h2>
+                    <h2 class="subtitle">{"Visualization"}</h2>
                     <div class="field">
-                        <label class="label">{"Visualization"}</label>
                         <div class="control">
                             <div class="select">
                                 <select onchange=on_viz_change>
@@ -428,21 +427,30 @@ impl Component for App {
                         </summary>
                         <p>
                         {
-                            for self.state.visualizations.iter().find(|viz| viz.identifier == self.state.current_visualization).unwrap()
-                                .settings.as_ref().unwrap().iter().map(|(key, val)| {
+                            for self.state.visualizations.iter().map(|v| {
+                                if v.identifier == self.state.current_visualization {
                                     html! {
-                                        <div class="field">
-                                            <label class="label">{key.replace("_", ".").to_title_case()}</label>
-                                            <input class="input" type="text" value={val.to_string()} onchange=on_viz_setting_changed(key.to_string()) />
-                                        </div>
+                                        for v.settings.clone().unwrap().iter().map(|(key, val)| {
+                                            html! {
+                                                <div class="field">
+                                                    <label class="label">{key.replace("_", ".").to_title_case()}</label>
+                                                    <input class="input" type="text" value={val.to_string()} onchange=on_viz_setting_changed(key.to_string()) />
+                                                </div>
+                                            }
+                                        })
                                     }
+                                } else {
+                                    html! {}
+                                }
                             })
                         }
                         </p>
                     </details>
+                </section>
+                <section class="section">
+                    <h2 class="subtitle">{"Theme"}</h2>
 
                     <div class="field">
-                        <label class="label">{"Theme"}</label>
                         <div class="control">
                             <div class="select">
                                 <select onchange=on_theme_change>

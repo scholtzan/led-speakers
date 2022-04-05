@@ -3,6 +3,7 @@ use chrono::Duration;
 use rand::seq::SliceRandom;
 use rand::{distributions::Uniform, Rng};
 use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
 
 use crate::theme::Color;
 use crate::viz::PixelViz;
@@ -14,6 +15,37 @@ pub struct SparkleVizConfig {
     pub speed: f32,   // pixels per second
     pub falloff: f32, // factor of how much brightness is reduced
     pub max_ignite: f32,
+}
+
+impl SparkleVizConfig {
+    pub fn to_map(&self) -> HashMap<String, String> {
+        let mut settings = HashMap::new();
+        settings.insert("speed".to_string(), self.speed.to_string());
+        settings.insert("falloff".to_string(), self.falloff.to_string());
+        settings.insert("max_ignite".to_string(), self.max_ignite.to_string());
+        settings
+    }
+
+    pub fn from_map(name: String, settings: HashMap<String, String>) -> Self {
+        Self {
+            pretty_name: name,
+            falloff: settings
+                .get(&"falloff".to_string())
+                .unwrap_or(&"0".to_string())
+                .parse::<f32>()
+                .unwrap(),
+            speed: settings
+                .get(&"speed".to_string())
+                .unwrap_or(&"0".to_string())
+                .parse::<f32>()
+                .unwrap(),
+            max_ignite: settings
+                .get(&"max_ignite".to_string())
+                .unwrap_or(&"0".to_string())
+                .parse::<f32>()
+                .unwrap(),
+        }
+    }
 }
 
 #[derive(Deserialize, Serialize, Clone)]
@@ -108,6 +140,17 @@ impl Viz for SparkleViz {
         self.total_pixels = pixels;
         self.pixels = vec![None; pixels];
         self.falloffs = vec![0.0; pixels];
+    }
+
+    fn get_settings(&self) -> HashMap<String, String> {
+        self.config.to_map()
+    }
+
+    fn update_settings(&mut self, settings: HashMap<String, String>) {
+        let new_settings = SparkleVizConfig::from_map(self.get_pretty_name().to_string(), settings);
+        self.config = new_settings;
+        self.pixels = vec![None; self.total_pixels];
+        self.falloffs = vec![0.0; self.total_pixels];
     }
 }
 

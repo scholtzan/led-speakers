@@ -2,6 +2,7 @@ use chrono::prelude::*;
 use chrono::Duration;
 use rand::{distributions::Uniform, Rng};
 use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
 use std::time::{SystemTime, UNIX_EPOCH};
 
 use crate::theme::Color;
@@ -15,6 +16,43 @@ pub struct BlendVizConfig {
     pub blend_speed: u8,
     pub offset_weight: i64,
     pub blend_factor: u8,
+}
+
+impl BlendVizConfig {
+    pub fn to_map(&self) -> HashMap<String, String> {
+        let mut settings = HashMap::new();
+        settings.insert("spread".to_string(), self.spread.to_string());
+        settings.insert("blend_speed".to_string(), self.blend_speed.to_string());
+        settings.insert("offset_weight".to_string(), self.offset_weight.to_string());
+        settings.insert("blend_factor".to_string(), self.blend_factor.to_string());
+        settings
+    }
+
+    pub fn from_map(name: String, settings: HashMap<String, String>) -> Self {
+        Self {
+            pretty_name: name,
+            spread: settings
+                .get(&"spread".to_string())
+                .unwrap_or(&"0".to_string())
+                .parse::<u8>()
+                .unwrap(),
+            blend_speed: settings
+                .get(&"blend_speed".to_string())
+                .unwrap_or(&"0".to_string())
+                .parse::<u8>()
+                .unwrap(),
+            offset_weight: settings
+                .get(&"offset_weight".to_string())
+                .unwrap_or(&"0".to_string())
+                .parse::<i64>()
+                .unwrap(),
+            blend_factor: settings
+                .get(&"blend_factor".to_string())
+                .unwrap_or(&"0".to_string())
+                .parse::<u8>()
+                .unwrap(),
+        }
+    }
 }
 
 #[derive(Deserialize, Serialize, Clone)]
@@ -118,6 +156,24 @@ impl Viz for BlendViz {
         self.pixels = vec![PixelViz::default(); pixels];
         self.elapsed_time = vec![Utc::now(); pixels];
         self.target_colors = vec![Color { r: 1, g: 1, b: 1 }; pixels];
+        let offsets = self.offsets();
+
+        for pixel_index in 0..self.total_pixels {
+            self.elapsed_time[pixel_index] =
+                Utc::now() + Duration::milliseconds(offsets[pixel_index]);
+        }
+    }
+
+    fn get_settings(&self) -> HashMap<String, String> {
+        self.config.to_map()
+    }
+
+    fn update_settings(&mut self, settings: HashMap<String, String>) {
+        let new_settings = BlendVizConfig::from_map(self.get_pretty_name().to_string(), settings);
+        self.config = new_settings;
+        self.pixels = vec![PixelViz::default(); self.total_pixels];
+        self.elapsed_time = vec![Utc::now(); self.total_pixels];
+        self.target_colors = vec![Color { r: 1, g: 1, b: 1 }; self.total_pixels];
         let offsets = self.offsets();
 
         for pixel_index in 0..self.total_pixels {

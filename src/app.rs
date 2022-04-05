@@ -3,6 +3,7 @@ use crate::theme::Theme;
 use crate::viz::VizRunner;
 use serde::{Deserialize, Deserializer, Serialize};
 use serde_json::Value;
+use std::collections::HashMap;
 
 use std::sync::{Arc, Mutex, Weak};
 
@@ -11,7 +12,7 @@ use std::sync::{Arc, Mutex, Weak};
 pub struct Visualization {
     pub pretty_name: String,
     pub identifier: String,
-    pub settings: Option<Value>,
+    pub settings: Option<HashMap<String, String>>,
 }
 
 /// Shared web server state

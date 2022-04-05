@@ -54,7 +54,7 @@ async fn main() -> Result<()> {
         .map(|v| Visualization {
             pretty_name: v.get_pretty_name().to_string(),
             identifier: v.get_name().to_string(),
-            settings: None,
+            settings: Some(v.get_settings()),
         })
         .collect::<Vec<Visualization>>()
         .clone();

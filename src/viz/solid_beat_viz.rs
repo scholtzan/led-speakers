@@ -3,16 +3,41 @@ use crate::viz::PixelViz;
 use crate::viz::Viz;
 use chrono::prelude::*;
 
-use std::time::Duration;
-
 use serde::de::Error;
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
+use std::collections::HashMap;
+use std::time::Duration;
 
 #[derive(Serialize, Deserialize, Debug, PartialEq, Clone)]
 pub struct SolidBeatVizConfig {
     pub pretty_name: String,
     pub fade_colors: bool,
     pub fade_duration: i64,
+}
+
+impl SolidBeatVizConfig {
+    pub fn to_map(&self) -> HashMap<String, String> {
+        let mut settings = HashMap::new();
+        settings.insert("fade_colors".to_string(), self.fade_colors.to_string());
+        settings.insert("fade_duration".to_string(), self.fade_duration.to_string());
+        settings
+    }
+
+    pub fn from_map(name: String, settings: HashMap<String, String>) -> Self {
+        Self {
+            pretty_name: name,
+            fade_colors: settings
+                .get(&"fade_colors".to_string())
+                .unwrap_or(&"true".to_string())
+                .parse::<bool>()
+                .unwrap(),
+            fade_duration: settings
+                .get(&"fade_duration".to_string())
+                .unwrap_or(&"0".to_string())
+                .parse::<i64>()
+                .unwrap(),
+        }
+    }
 }
 
 #[derive(Serialize, Deserialize, Clone)]
@@ -67,6 +92,16 @@ impl Viz for SolidBeatViz {
 
     fn set_total_pixels(&mut self, pixels: usize) {
         self.total_pixels = pixels;
+    }
+
+    fn get_settings(&self) -> HashMap<String, String> {
+        self.config.to_map()
+    }
+
+    fn update_settings(&mut self, settings: HashMap<String, String>) {
+        let new_settings =
+            SolidBeatVizConfig::from_map(self.get_pretty_name().to_string(), settings);
+        self.config = new_settings;
     }
 }
 

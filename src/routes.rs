@@ -48,6 +48,7 @@ pub fn init(cfg: &mut web::ServiceConfig) {
     cfg.service(get_status);
     cfg.service(get_transformer_settings);
     cfg.service(update_transformer_settings);
+    cfg.service(update_viz_settings);
 }
 
 #[get("/api/visualization")]
@@ -158,5 +159,17 @@ async fn update_transformer_settings(
         .lock()
         .unwrap()
         .update_transformer_settings(transformer_settings);
+    HttpResponse::Ok().json(true)
+}
+
+#[put("/api/visualization/{id}")]
+async fn update_viz_settings(
+    new_settings: web::Json<HashMap<String, String>>,
+    data: web::Data<AppState>,
+) -> impl Responder {
+    data.viz_runner
+        .lock()
+        .unwrap()
+        .update_viz_settings(new_settings.into_inner());
     HttpResponse::Ok().json(true)
 }

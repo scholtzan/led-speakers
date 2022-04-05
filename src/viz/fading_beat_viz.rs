@@ -18,6 +18,43 @@ pub struct FadingBeatVizConfig {
     pub frequency_magnitude_buffer_size: i64,
 }
 
+impl FadingBeatVizConfig {
+    pub fn to_map(&self) -> HashMap<String, String> {
+        let mut settings = HashMap::new();
+        settings.insert("fade_duration".to_string(), self.fade_duration.to_string());
+        settings.insert(
+            "fade_threshold".to_string(),
+            self.fade_threshold.to_string(),
+        );
+        settings.insert(
+            "frequency_magnitude_buffer_size".to_string(),
+            self.frequency_magnitude_buffer_size.to_string(),
+        );
+        settings
+    }
+
+    pub fn from_map(name: String, settings: HashMap<String, String>) -> Self {
+        Self {
+            pretty_name: name,
+            fade_duration: settings
+                .get(&"fade_duration".to_string())
+                .unwrap_or(&"0".to_string())
+                .parse::<i64>()
+                .unwrap(),
+            fade_threshold: settings
+                .get(&"fade_threshold".to_string())
+                .unwrap_or(&"0".to_string())
+                .parse::<i64>()
+                .unwrap(),
+            frequency_magnitude_buffer_size: settings
+                .get(&"frequency_magnitude_buffer_size".to_string())
+                .unwrap_or(&"0".to_string())
+                .parse::<i64>()
+                .unwrap(),
+        }
+    }
+}
+
 #[derive(Serialize, Deserialize, Clone)]
 pub struct FadingBeatViz {
     pub config: FadingBeatVizConfig,
@@ -101,6 +138,18 @@ impl Viz for FadingBeatViz {
 
     fn set_total_pixels(&mut self, pixels: usize) {
         self.total_pixels = pixels;
+    }
+
+    fn get_settings(&self) -> HashMap<String, String> {
+        self.config.to_map()
+    }
+
+    fn update_settings(&mut self, settings: HashMap<String, String>) {
+        let new_settings =
+            FadingBeatVizConfig::from_map(self.get_pretty_name().to_string(), settings);
+        self.config = new_settings;
+        self.dominant_frequencies = vec![0; self.config.frequency_magnitude_buffer_size as usize];
+        self.is_fading = false;
     }
 }
 
