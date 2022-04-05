@@ -1,6 +1,7 @@
 use http::response;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
+use std::collections::HashMap;
 use std::fmt;
 
 pub enum Error {
@@ -26,7 +27,7 @@ pub struct Visualization {
     pub pretty_name: String,
 
     /// Available visualization settings
-    pub settings: Option<Value>,
+    pub settings: Option<HashMap<String, String>>,
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug)]

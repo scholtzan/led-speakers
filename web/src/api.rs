@@ -1,7 +1,9 @@
-use crate::types::{ChangeTheme, ChangeVisualization, Status, Themes, Visualizations};
+use crate::types::{
+    ChangeTheme, ChangeVisualization, Status, Themes, Visualization, Visualizations,
+};
 
-use log::info;
 use anyhow::Error;
+use log::info;
 use std::collections::HashMap;
 use yew::callback::Callback;
 use yew::format::{Json, Nothing};
@@ -100,6 +102,21 @@ pub fn update_advanced_settings(
         .header("Content-Type", "application/json")
         .body(Json(&settings))
         .unwrap();
+
+    FetchService::fetch(req, callback).unwrap()
+}
+
+pub fn update_visualization_settings(
+    visualization: Visualization,
+    callback: FetchCallback<bool>,
+) -> FetchTask {
+    let req = Request::put(url(&format!(
+        "/api/visualization/{}",
+        visualization.identifier
+    )))
+    .header("Content-Type", "application/json")
+    .body(Json(&visualization.settings))
+    .unwrap();
 
     FetchService::fetch(req, callback).unwrap()
 }

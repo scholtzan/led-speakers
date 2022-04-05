@@ -1,7 +1,7 @@
 use crate::types::{Color, Error, Status, Theme, Themes, Visualization, Visualizations};
 
-use log::info;
 use inflector::Inflector;
+use log::info;
 use std::collections::VecDeque;
 use yew::format::Json;
 use yew::prelude::*;
@@ -49,6 +49,8 @@ pub enum Message {
     ChangeAdvancedSetting(String, String),
     GetAdvancedSettingsSuccess(HashMap<String, String>),
     ChangeAdvancedSettingsSuccess,
+    ChangeVizSetting(String, String),
+    ChangeVizSettingSuccess,
     Error(Error),
 }
 
@@ -278,6 +280,34 @@ impl Component for App {
                 false
             }
             Message::ChangeAdvancedSettingsSuccess => true,
+            Message::ChangeVizSetting(key, value) => {
+                let current_viz = self.state.current_visualization.clone();
+                let mut current_viz = self
+                    .state
+                    .visualizations
+                    .iter_mut()
+                    .find(|viz| viz.identifier == current_viz)
+                    .unwrap();
+                current_viz.settings.as_mut().unwrap().insert(key, value);
+
+                let handler = self
+                    .link
+                    .callback(move |response: api::FetchResponse<bool>| {
+                        let (meta, Json(data)) = response.into_parts();
+                        match data {
+                            Ok(_) => Message::ChangeVizSettingSuccess,
+                            Err(err) => Message::Error(Error::FetchError(
+                                format!("Error changing viz settings: {:?}", err.to_string()),
+                                meta,
+                            )),
+                        }
+                    });
+                let updated_viz = current_viz.clone();
+
+                self.queue_task(api::update_visualization_settings(updated_viz, handler));
+                false
+            }
+            Message::ChangeVizSettingSuccess => true,
             Message::Error(err) => {
                 if let Error::FetchError(msg, _) = err {
                     log::info!("Error {:?}", msg);
@@ -285,7 +315,7 @@ impl Component for App {
                     log::info!("Error {:?}", msg);
                 }
                 true
-            },
+            }
         }
     }
 
@@ -327,6 +357,16 @@ impl Component for App {
                     Message::ChangeAdvancedSetting(setting.clone(), val)
                 } else {
                     Message::Error(Error::Misc("Cannot change settings".to_string()))
+                }
+            })
+        };
+        let on_viz_setting_changed = |setting: String| {
+            let setting = setting.clone();
+            self.link.callback(move |e: ChangeData| {
+                if let ChangeData::Value(val) = e {
+                    Message::ChangeVizSetting(setting.clone(), val)
+                } else {
+                    Message::Error(Error::Misc("Cannot change viz settings".to_string()))
                 }
             })
         };
@@ -381,6 +421,25 @@ impl Component for App {
                             </div>
                         </div>
                     </div>
+
+                    <details>
+                        <summary>
+                            {"Settings"}
+                        </summary>
+                        <p>
+                        {
+                            for self.state.visualizations.iter().find(|viz| viz.identifier == self.state.current_visualization).unwrap()
+                                .settings.as_ref().unwrap().iter().map(|(key, val)| {
+                                    html! {
+                                        <div class="field">
+                                            <label class="label">{key.replace("_", ".").to_title_case()}</label>
+                                            <input class="input" type="text" value={val.to_string()} onchange=on_viz_setting_changed(key.to_string()) />
+                                        </div>
+                                    }
+                            })
+                        }
+                        </p>
+                    </details>
 
                     <div class="field">
                         <label class="label">{"Theme"}</label>
