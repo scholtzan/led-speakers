@@ -1,13 +1,13 @@
 use crate::types::{Color, Error, Status, Theme, Themes, Visualization, Visualizations};
 
 use inflector::Inflector;
-use log::info;
+
 use std::collections::VecDeque;
 use yew::format::Json;
 use yew::prelude::*;
-use yew::services::fetch::StatusCode;
-use yew::services::fetch::{FetchService, FetchTask};
-use yew::{html, Component, Html, Properties};
+
+use yew::services::fetch::FetchTask;
+use yew::{html, Component, Html};
 
 use std::collections::HashMap;
 
@@ -291,7 +291,7 @@ impl Component for App {
             Message::ChangeAdvancedSettingsSuccess => true,
             Message::ChangeVizSetting(key, value) => {
                 let current_viz = self.state.current_visualization.clone();
-                let mut current_viz = self
+                let current_viz = self
                     .state
                     .visualizations
                     .iter_mut()
@@ -318,7 +318,7 @@ impl Component for App {
             }
             Message::ChangeVizSettingSuccess => true,
             Message::UpdateCustomTheme => {
-                if let Some(mut custom_theme) = self.state.custom_theme.as_mut() {
+                if let Some(custom_theme) = self.state.custom_theme.as_mut() {
                     let new_theme = custom_theme.clone();
                     let handler = self
                         .link
@@ -341,7 +341,7 @@ impl Component for App {
                 true
             }
             Message::ChangeCustomThemeColor(color_index, hex_color) => {
-                if let Some(mut custom_theme) = self.state.custom_theme.as_mut() {
+                if let Some(custom_theme) = self.state.custom_theme.as_mut() {
                     custom_theme.colors[color_index] = Color::from_hex(&hex_color);
                     self.link.send_message(Message::UpdateCustomTheme);
                 }
@@ -349,7 +349,7 @@ impl Component for App {
             }
             Message::ChangeCustomThemeColorSuccess => true,
             Message::AddCustomThemeColor => {
-                if let Some(mut custom_theme) = self.state.custom_theme.as_mut() {
+                if let Some(custom_theme) = self.state.custom_theme.as_mut() {
                     custom_theme.colors.push(Color::default())
                 } else {
                     self.state.custom_theme = Some(Theme {
@@ -361,7 +361,7 @@ impl Component for App {
                 true
             }
             Message::RemoveCustomThemeColor => {
-                if let Some(mut custom_theme) = self.state.custom_theme.as_mut() {
+                if let Some(custom_theme) = self.state.custom_theme.as_mut() {
                     if custom_theme.colors.len() > 1 {
                         custom_theme.colors.pop();
                         self.link.send_message(Message::UpdateCustomTheme);

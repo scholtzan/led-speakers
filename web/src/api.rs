@@ -3,11 +3,11 @@ use crate::types::{
 };
 
 use anyhow::Error;
-use log::info;
+
 use std::collections::HashMap;
 use yew::callback::Callback;
 use yew::format::{Json, Nothing};
-use yew::services::fetch::{Credentials, FetchOptions, FetchService, FetchTask, Request, Response};
+use yew::services::fetch::{FetchService, FetchTask, Request, Response};
 
 pub type FetchResponse<T> = Response<Json<Result<T, Error>>>;
 type FetchCallback<T> = Callback<FetchResponse<T>>;

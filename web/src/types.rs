@@ -1,8 +1,7 @@
 use http::response;
 use serde::{Deserialize, Serialize, Serializer};
-use serde_json::Value;
+
 use std::collections::HashMap;
-use std::fmt;
 
 pub enum Error {
     FetchError(String, response::Parts),
