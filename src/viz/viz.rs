@@ -4,7 +4,6 @@ use std::collections::HashMap;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
 use std::thread;
-use std::thread::JoinHandle;
 
 use crate::settings::{OutputSettings, TransformerSettings};
 use crate::theme::Color;
@@ -103,12 +102,12 @@ impl VizRunner {
         let theme = Arc::clone(&self.theme);
         let transformer = Arc::clone(&self.transformer);
 
-        let handle = Some(thread::spawn(move || {
+        let _handle = Some(thread::spawn(move || {
             // init outputs from settings
             let mut left_output = output.left.to_led();
             let mut right_output = output.right.to_led();
 
-            while true {
+            loop {
                 if !stopped.load(Ordering::Relaxed) {
                     let colors = theme.lock().unwrap().colors.clone();
                     // update visualizations for left and right channel

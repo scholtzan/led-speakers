@@ -1,11 +1,11 @@
 use crate::settings::Settings;
 use crate::theme::Theme;
 use crate::viz::VizRunner;
-use serde::{Deserialize, Deserializer, Serialize};
-use serde_json::Value;
+use serde::{Deserialize, Serialize};
+
 use std::collections::HashMap;
 
-use std::sync::{Arc, Mutex, Weak};
+use std::sync::{Arc, Mutex};
 
 /// Serializable representation of a visualization
 #[derive(Serialize, Deserialize, Clone)]

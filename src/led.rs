@@ -103,23 +103,6 @@ impl Pixel {
         self.green = ((green as f32) * brightness) as u8;
         self.blue = ((blue as f32) * brightness) as u8;
     }
-
-    /// Turns off the LED pixel.
-    ///
-    /// # Examples
-    /// ```
-    /// let mut pixel = Pixel {
-    ///     red: 255,
-    ///     blue: 255,
-    ///     green: 0,
-    /// };
-    /// led.clear();
-    /// ```
-    fn clear(&mut self) {
-        self.red = 0;
-        self.green = 0;
-        self.blue = 0;
-    }
 }
 
 impl Default for Pixel {

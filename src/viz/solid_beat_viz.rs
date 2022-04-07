@@ -3,10 +3,8 @@ use crate::viz::PixelViz;
 use crate::viz::Viz;
 use chrono::prelude::*;
 
-use serde::de::Error;
-use serde::{Deserialize, Deserializer, Serialize, Serializer};
+use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
-use std::time::Duration;
 
 #[derive(Serialize, Deserialize, Debug, PartialEq, Clone)]
 pub struct SolidBeatVizConfig {

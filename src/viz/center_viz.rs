@@ -14,7 +14,7 @@ impl CenterVizConfig {
         HashMap::new()
     }
 
-    pub fn from_map(name: String, settings: HashMap<String, String>) -> Self {
+    pub fn from_map(name: String, _settings: HashMap<String, String>) -> Self {
         Self { pretty_name: name }
     }
 }
@@ -35,13 +35,13 @@ impl Viz for CenterViz {
         &self.config.pretty_name
     }
 
-    fn update(&mut self, input: &Vec<f32>, colors: &Vec<Color>) -> Vec<PixelViz> {
+    fn update(&mut self, input: &Vec<f32>, _colors: &Vec<Color>) -> Vec<PixelViz> {
         let total_bands = input.len();
         let pixels_per_band: usize = (self.total_pixels / 2) / total_bands;
         let mut pixels = vec![PixelViz::default(); self.total_pixels];
 
         let mut overall_intensity = 0;
-        for (band_index, band) in input.iter().enumerate() {
+        for (_band_index, band) in input.iter().enumerate() {
             let intensity = ((band / 100.0) * (pixels_per_band as f32)) as usize;
             overall_intensity += intensity;
         }

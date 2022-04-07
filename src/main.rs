@@ -1,10 +1,9 @@
 use actix_cors::Cors;
-use actix_web::{get, http, post, web, App, Error, HttpResponse, HttpServer, Responder};
+use actix_web::{http, web, App, Error, HttpServer};
 use anyhow::Result;
-use dotenv::dotenv;
-use dyn_clone::DynClone;
-use std::sync::atomic::{AtomicBool, Ordering};
-use std::sync::{Arc, Mutex, Weak};
+
+use std::sync::atomic::AtomicBool;
+use std::sync::{Arc, Mutex};
 
 mod app;
 mod audio;
@@ -17,14 +16,13 @@ mod transform;
 mod viz;
 
 use crate::app::{AppState, Visualization};
-use crate::audio::AudioStream;
+
 use crate::routes::init;
 use crate::settings::Settings;
 use crate::transform::AudioTransformer;
-use crate::viz::RotatingViz;
+
 use crate::viz::VizRunner;
 
-#[macro_use]
 extern crate dotenv_codegen;
 
 const ASSETS_DIR: &str = "web/static";
@@ -68,13 +66,13 @@ async fn main() -> Result<()> {
     // instantiate visualization
     let mut viz_left = dyn_clone::clone_box(&*shared_settings.lock().unwrap().visualizations[0]);
     viz_left.set_total_pixels(shared_settings.lock().unwrap().output.left.total_leds as usize);
-    let mut viz_right = dyn_clone::clone_box(&*viz_left);
+    let viz_right = dyn_clone::clone_box(&*viz_left);
 
     let output_settings = shared_settings.lock().unwrap().output.clone();
     let theme = shared_settings.lock().unwrap().themes[0].clone();
 
     // viz runner will update the visualization periodically
-    let mut viz_runner = VizRunner {
+    let viz_runner = VizRunner {
         viz_left: Arc::new(Mutex::new(viz_left)),
         viz_right: Arc::new(Mutex::new(viz_right)),
         output_settings: output_settings,

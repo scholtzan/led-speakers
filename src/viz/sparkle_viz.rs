@@ -1,7 +1,7 @@
 use chrono::prelude::*;
-use chrono::Duration;
+
 use rand::seq::SliceRandom;
-use rand::{distributions::Uniform, Rng};
+
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
@@ -67,9 +67,9 @@ impl Viz for SparkleViz {
         &self.config.pretty_name
     }
 
-    fn update(&mut self, input: &Vec<f32>, colors: &Vec<Color>) -> Vec<PixelViz> {
+    fn update(&mut self, input: &Vec<f32>, _colors: &Vec<Color>) -> Vec<PixelViz> {
         let total_bands = input.len();
-        let mut rng = rand::thread_rng();
+        let _rng = rand::thread_rng();
 
         let now = Utc::now();
         let elapsed: f32 = (now - self.elapsed_time).num_milliseconds() as f32;
@@ -82,7 +82,7 @@ impl Viz for SparkleViz {
                     .pixels
                     .iter()
                     .enumerate()
-                    .flat_map(|(i, p)| if let Some(pixel) = p { None } else { Some(i) })
+                    .flat_map(|(i, p)| if let Some(_pixel) = p { None } else { Some(i) })
                     .collect::<Vec<usize>>();
                 let pixels_to_spark: Vec<usize> = off_pixels
                     .choose_multiple(&mut rand::thread_rng(), total_ignite)

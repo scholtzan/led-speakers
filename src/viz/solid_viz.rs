@@ -14,7 +14,7 @@ impl SolidVizConfig {
         HashMap::new()
     }
 
-    pub fn from_map(name: String, settings: HashMap<String, String>) -> Self {
+    pub fn from_map(name: String, _settings: HashMap<String, String>) -> Self {
         Self { pretty_name: name }
     }
 }
@@ -35,7 +35,7 @@ impl Viz for SolidViz {
         &self.config.pretty_name
     }
 
-    fn update(&mut self, input: &Vec<f32>, colors: &Vec<Color>) -> Vec<PixelViz> {
+    fn update(&mut self, _input: &Vec<f32>, _colors: &Vec<Color>) -> Vec<PixelViz> {
         vec![PixelViz::default(); self.total_pixels]
     }
 

@@ -3,7 +3,6 @@ use chrono::Duration;
 use rand::{distributions::Uniform, Rng};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
-use std::time::{SystemTime, UNIX_EPOCH};
 
 use crate::theme::Color;
 use crate::viz::PixelViz;
@@ -75,7 +74,7 @@ impl Viz for BlendViz {
     }
 
     fn update(&mut self, input: &Vec<f32>, colors: &Vec<Color>) -> Vec<PixelViz> {
-        let total_bands = input.len();
+        let _total_bands = input.len();
         let total_magnitude: f32 = input.iter().sum();
         let mut rng = rand::thread_rng();
 
@@ -96,12 +95,11 @@ impl Viz for BlendViz {
                     * self.pixels[pixel_index].blue_mul) as u8,
             };
 
-            let mut color_index = self.pixels[pixel_index].color_index;
             let mut target_color = self.target_colors[pixel_index];
 
             if elapsed > (self.config.blend_speed as i64) {
                 let mut r = rng.gen_range(0..100) as i64;
-                color_index = 0;
+                let mut color_index = 0;
 
                 while r > 0 && color_index < freq_amounts.len() - 1 {
                     r -= freq_amounts[color_index as usize];

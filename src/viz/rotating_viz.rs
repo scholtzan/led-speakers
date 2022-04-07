@@ -4,8 +4,8 @@ use crate::theme::Color;
 use crate::viz::PixelViz;
 use crate::viz::Viz;
 use chrono::prelude::*;
-use chrono::Duration;
-use rand::{distributions::Uniform, Rng};
+
+use rand::Rng;
 use std::collections::HashMap;
 
 #[derive(Serialize, Deserialize, Debug, PartialEq, Clone)]
@@ -59,7 +59,7 @@ impl Viz for RotatingViz {
         &self.config.pretty_name
     }
 
-    fn update(&mut self, input: &Vec<f32>, colors: &Vec<Color>) -> Vec<PixelViz> {
+    fn update(&mut self, input: &Vec<f32>, _colors: &Vec<Color>) -> Vec<PixelViz> {
         let total_bands = input.len();
         let mut rng = rand::thread_rng();
 
@@ -159,7 +159,7 @@ impl Viz for RotatingViz {
                         .pixels
                         .iter()
                         .enumerate()
-                        .flat_map(|(i, p)| if let Some(pixel) = p { None } else { Some(i) })
+                        .flat_map(|(i, p)| if let Some(_pixel) = p { None } else { Some(i) })
                         .collect::<Vec<usize>>();
 
                     let on_change_probability =
@@ -182,7 +182,7 @@ impl Viz for RotatingViz {
             }
 
             // apply brightness
-            for mut p in self.pixels.iter_mut() {
+            for p in self.pixels.iter_mut() {
                 if let Some(ref mut pixel) = p {
                     if pixel.color_index == band {
                         pixel.brightness = input[band] as f32 / 100.0;

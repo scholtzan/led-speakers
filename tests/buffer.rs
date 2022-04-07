@@ -1,6 +1,5 @@
 use led_speakers::buffer::Buffer;
 
-use bytes::Bytes;
 use std::str;
 
 #[test]

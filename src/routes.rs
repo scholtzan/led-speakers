@@ -1,14 +1,13 @@
-use actix_web::{get, http, post, put, web, App, Error, HttpResponse, HttpServer, Responder};
-use dyn_clone::DynClone;
-use serde::{Deserialize, Deserializer, Serialize};
-use serde_json::Value;
+use actix_web::{get, post, put, web, HttpResponse, Responder};
+
+use serde::{Deserialize, Serialize};
+
 use std::collections::HashMap;
-use std::sync::{Arc, Mutex, Weak};
+use std::sync::Arc;
 
 use crate::app::{AppState, Visualization};
 use crate::settings::TransformerSettings;
 use crate::theme::Theme;
-use crate::viz::Viz;
 
 #[derive(Serialize, Deserialize, Clone)]
 struct VisualizationsResponse {

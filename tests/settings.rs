@@ -14,8 +14,8 @@ fn settings_from_json() {
                 {
                     "name": "test",
                     "colors": [
-                        [0, 0, 255, 1],
-                        [1, 1, 1, 1]
+                        [0, 0, 255],
+                        [1, 1, 1]
                     ]
                 }
             ]
@@ -27,20 +27,7 @@ fn settings_from_json() {
         settings.themes[0],
         Theme {
             name: "test".to_string(),
-            colors: vec![
-                Color {
-                    r: 0,
-                    g: 0,
-                    b: 255,
-                    a: 1
-                },
-                Color {
-                    r: 1,
-                    g: 1,
-                    b: 1,
-                    a: 1
-                }
-            ]
+            colors: vec![Color { r: 0, g: 0, b: 255 }, Color { r: 1, g: 1, b: 1 }]
         }
     );
     assert_eq!(

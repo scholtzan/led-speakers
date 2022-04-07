@@ -5,10 +5,7 @@ use chrono::prelude::*;
 
 use std::collections::HashMap;
 
-use std::time::Duration;
-
-use serde::de::Error;
-use serde::{Deserialize, Deserializer, Serialize, Serializer};
+use serde::{Deserialize, Serialize};
 
 #[derive(Serialize, Deserialize, Debug, PartialEq, Clone)]
 pub struct FadingBeatVizConfig {
