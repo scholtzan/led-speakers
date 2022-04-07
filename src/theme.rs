@@ -1,6 +1,6 @@
 use serde::{Deserialize, Deserializer, Serialize};
 
-#[derive(Serialize, Deserialize, Debug, PartialEq, Clone, Copy)]
+#[derive(Serialize, Deserialize, Debug, PartialEq, Clone, Copy, Default)]
 /// Represents the RGB values of a color.
 pub struct Color {
     /// Red

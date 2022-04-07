@@ -1,5 +1,5 @@
 use crate::types::{
-    ChangeTheme, ChangeVisualization, Status, Themes, Visualization, Visualizations,
+    ChangeTheme, ChangeVisualization, Status, Theme, Themes, Visualization, Visualizations,
 };
 
 use anyhow::Error;
@@ -117,6 +117,15 @@ pub fn update_visualization_settings(
     .header("Content-Type", "application/json")
     .body(Json(&visualization.settings))
     .unwrap();
+
+    FetchService::fetch(req, callback).unwrap()
+}
+
+pub fn set_custom_theme(theme: Theme, callback: FetchCallback<bool>) -> FetchTask {
+    let req = Request::post(url("/api/theme/custom"))
+        .header("Content-Type", "application/json")
+        .body(Json(&theme))
+        .unwrap();
 
     FetchService::fetch(req, callback).unwrap()
 }

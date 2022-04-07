@@ -22,6 +22,8 @@ pub struct State {
 
     status: Status,
     advanced_settings: HashMap<String, String>,
+
+    custom_theme: Option<Theme>,
 }
 
 pub struct App {
@@ -51,6 +53,11 @@ pub enum Message {
     ChangeAdvancedSettingsSuccess,
     ChangeVizSetting(String, String),
     ChangeVizSettingSuccess,
+    AddCustomThemeColor,
+    RemoveCustomThemeColor,
+    ChangeCustomThemeColor(usize, String),
+    UpdateCustomTheme,
+    ChangeCustomThemeColorSuccess,
     Error(Error),
 }
 
@@ -67,6 +74,7 @@ impl Component for App {
                 themes: Vec::new(),
                 status: Status { is_stopped: false },
                 advanced_settings: HashMap::new(),
+                custom_theme: None,
             },
             tasks: VecDeque::with_capacity(10),
             link,
@@ -190,6 +198,7 @@ impl Component for App {
             }
             Message::ChangeThemeSuccess(new_theme) => {
                 self.state.current_theme = new_theme;
+                self.state.custom_theme = None;
                 true
             }
             Message::TurnOff => {
@@ -308,6 +317,58 @@ impl Component for App {
                 false
             }
             Message::ChangeVizSettingSuccess => true,
+            Message::UpdateCustomTheme => {
+                if let Some(mut custom_theme) = self.state.custom_theme.as_mut() {
+                    let new_theme = custom_theme.clone();
+                    let handler = self
+                        .link
+                        .callback(move |response: api::FetchResponse<bool>| {
+                            let (meta, Json(data)) = response.into_parts();
+                            match data {
+                                Ok(_) => Message::ChangeCustomThemeColorSuccess,
+                                Err(err) => Message::Error(Error::FetchError(
+                                    format!(
+                                        "Error changing cusotm theme color: {:?}",
+                                        err.to_string()
+                                    ),
+                                    meta,
+                                )),
+                            }
+                        });
+
+                    self.queue_task(api::set_custom_theme(new_theme, handler));
+                }
+                true
+            }
+            Message::ChangeCustomThemeColor(color_index, hex_color) => {
+                if let Some(mut custom_theme) = self.state.custom_theme.as_mut() {
+                    custom_theme.colors[color_index] = Color::from_hex(&hex_color);
+                    self.link.send_message(Message::UpdateCustomTheme);
+                }
+                true
+            }
+            Message::ChangeCustomThemeColorSuccess => true,
+            Message::AddCustomThemeColor => {
+                if let Some(mut custom_theme) = self.state.custom_theme.as_mut() {
+                    custom_theme.colors.push(Color::default())
+                } else {
+                    self.state.custom_theme = Some(Theme {
+                        name: "custom".to_string(),
+                        colors: vec![Color::default()],
+                    })
+                }
+                self.link.send_message(Message::UpdateCustomTheme);
+                true
+            }
+            Message::RemoveCustomThemeColor => {
+                if let Some(mut custom_theme) = self.state.custom_theme.as_mut() {
+                    if custom_theme.colors.len() > 1 {
+                        custom_theme.colors.pop();
+                        self.link.send_message(Message::UpdateCustomTheme);
+                    }
+                }
+                true
+            }
             Message::Error(err) => {
                 if let Error::FetchError(msg, _) = err {
                     log::info!("Error {:?}", msg);
@@ -333,7 +394,11 @@ impl Component for App {
         });
         let on_theme_change = self.link.callback(|e: ChangeData| {
             if let ChangeData::Select(e) = e {
-                Message::ChangeTheme(e.value())
+                if "custom".eq(&e.value()) {
+                    Message::AddCustomThemeColor
+                } else {
+                    Message::ChangeTheme(e.value())
+                }
             } else {
                 Message::Error(Error::Misc("Cannot change theme".to_string()))
             }
@@ -370,6 +435,17 @@ impl Component for App {
                 }
             })
         };
+        let change_custom_theme_color = |color_index: usize| {
+            self.link.callback(move |e: ChangeData| {
+                if let ChangeData::Value(val) = e {
+                    Message::ChangeCustomThemeColor(color_index, val)
+                } else {
+                    Message::Error(Error::Misc("Cannot change custom theme".to_string()))
+                }
+            })
+        };
+        let add_custom_theme_color = self.link.callback(|_| Message::AddCustomThemeColor);
+        let remove_custom_theme_color = self.link.callback(|_| Message::RemoveCustomThemeColor);
 
         html! {
             <>
@@ -458,14 +534,33 @@ impl Component for App {
                                     for self.state.themes.iter()
                                     .map(|theme| self.view_select_option(&theme.name, &theme.name, theme.name == self.state.current_theme))
                                 }
+                                <option value={"custom"}>{"Custom"}</option>
                                 </select>
                             </div>
                         </div>
-                        <div class="color-container">
                         {
-                            for current_colors.iter().map(|color| self.view_color(&color))
+                            if self.state.custom_theme.is_none() {
+                                html! {
+                                    <div class="color-container">
+                                    {
+                                        for current_colors.iter().map(|color| self.view_color(&color))
+                                    }
+                                    </div>
+                                }
+                            } else {
+                                html! {
+                                    <div class="color-container" style="margin-top: 10px;">
+                                    {
+                                        for self.state.custom_theme.as_ref().unwrap().colors.iter().enumerate().map(|(i, color)| html! {
+                                            <input type="color" value={color.to_hex()} onchange=change_custom_theme_color(i) />
+                                        })
+                                    }
+                                    <button class="button is-rounded is-small" onclick=add_custom_theme_color>{"+"}</button>
+                                    <button class="button is-rounded is-small" onclick=remove_custom_theme_color>{"-"}</button>
+                                    </div>
+                                }
+                            }
                         }
-                        </div>
                     </div>
                 </section>
                 <section class="section">

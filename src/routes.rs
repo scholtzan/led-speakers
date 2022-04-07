@@ -49,6 +49,7 @@ pub fn init(cfg: &mut web::ServiceConfig) {
     cfg.service(get_transformer_settings);
     cfg.service(update_transformer_settings);
     cfg.service(update_viz_settings);
+    cfg.service(set_custom_theme);
 }
 
 #[get("/api/visualization")]
@@ -114,6 +115,15 @@ async fn update_theme(
     } else {
         HttpResponse::Ok().json(false)
     }
+}
+
+#[post("/api/theme/custom")]
+async fn set_custom_theme(theme: web::Json<Theme>, data: web::Data<AppState>) -> impl Responder {
+    data.viz_runner
+        .lock()
+        .unwrap()
+        .set_theme(theme.into_inner());
+    HttpResponse::Ok().json(true)
 }
 
 #[post("/api/on")]

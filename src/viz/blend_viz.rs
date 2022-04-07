@@ -88,11 +88,11 @@ impl Viz for BlendViz {
         for pixel_index in 0..self.total_pixels {
             let elapsed = (now - self.elapsed_time[pixel_index]).num_seconds();
             let current_color = Color {
-                r: ((colors[self.pixels[pixel_index].color_index].r as f32)
+                r: ((colors[self.pixels[pixel_index].color_index % colors.len()].r as f32)
                     * self.pixels[pixel_index].red_mul) as u8,
-                g: ((colors[self.pixels[pixel_index].color_index].g as f32)
+                g: ((colors[self.pixels[pixel_index].color_index % colors.len()].g as f32)
                     * self.pixels[pixel_index].green_mul) as u8,
-                b: ((colors[self.pixels[pixel_index].color_index].b as f32)
+                b: ((colors[self.pixels[pixel_index].color_index % colors.len()].b as f32)
                     * self.pixels[pixel_index].blue_mul) as u8,
             };
 
@@ -140,7 +140,7 @@ impl Viz for BlendViz {
                 self.pixels[pixel_index].color_index = color_index;
             }
 
-            let actual_color = colors[self.pixels[pixel_index].color_index];
+            let actual_color = colors[self.pixels[pixel_index].color_index % colors.len()];
 
             let blend_color = Self::blend(&current_color, &target_color, self.config.blend_factor);
             self.pixels[pixel_index].red_mul = (blend_color.r as f32) / (actual_color.r as f32);
