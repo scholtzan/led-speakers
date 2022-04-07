@@ -92,7 +92,6 @@ where
     color_vec.serialize(s)
 }
 
-
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct ChangeVisualization {
     /// Identifier of visualization LED speakers should change to

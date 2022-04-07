@@ -1,0 +1,53 @@
+.color-container {
+    margin-top: 10px;
+}
+
+.color {
+    border-radius: 50%;
+    margin-top: 10px;
+    margin-right: 10px;
+    display: inline-block;
+    height: 35px;
+    width: 35px;
+}
+
+.color-control {
+    margin-right: 2px;
+    padding-top: 18px;
+    padding-bottom: 18px;
+    padding-left: 10px;
+    padding-right: 10px;
+    font-weight: bold;
+}
+
+input[type=text] {
+    max-width: 20em;
+}
+
+select {
+    min-width: 20em;
+}
+
+input[type=color] {
+    width: 35px;
+    height: 35px; 
+    border-radius: 50%;
+    overflow: hidden;
+    margin-right: 10px;
+}
+
+input[type=color]::-webkit-color-swatch {
+  border: none;
+  border-radius: 50%;
+  padding: 0;
+}
+
+input[type=color]::-webkit-color-swatch-wrapper {
+    border: none;
+    border-radius: 50%;
+    padding: 0;
+}
+
+.logo {
+    font-weight: bold;
+}

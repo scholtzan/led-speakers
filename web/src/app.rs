@@ -450,31 +450,33 @@ impl Component for App {
         html! {
             <>
             <nav class="navbar is-dark" role="navigation" aria-label="main navigation">
-                <div class="navbar-brand">
-                    <div class="navbar-item">
-                    {"LED Speakers"}
+                <div class="container">
+                    <div class="navbar-brand">
+                        <div class="navbar-item logo">
+                        {"LED Speakers"}
+                        </div>
                     </div>
-                </div>
 
-                <div class="navbar-menu">
-                    <div class="navbar-end">
-                        <div class="navbar-item">
-                            <div class="buttons">
-                            {
-                                if status.is_stopped {
-                                    html! {
-                                        <a class="button is-black" onclick=turn_on>
-                                        <strong>{"Turn on"}</strong>
-                                        </a>
-                                    }
-                                } else {
-                                    html! {
-                                        <a class="button is-primary" onclick=turn_off>
-                                        <strong>{"Turn off"}</strong>
-                                        </a>
+                    <div class="navbar-menu">
+                        <div class="navbar-end">
+                            <div class="navbar-item">
+                                <div class="buttons">
+                                {
+                                    if status.is_stopped {
+                                        html! {
+                                            <a class="button is-black" onclick=turn_on>
+                                            <strong>{"Turn on"}</strong>
+                                            </a>
+                                        }
+                                    } else {
+                                        html! {
+                                            <a class="button is-primary" onclick=turn_off>
+                                            <strong>{"Turn off"}</strong>
+                                            </a>
+                                        }
                                     }
                                 }
-                            }
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -549,14 +551,14 @@ impl Component for App {
                                 }
                             } else {
                                 html! {
-                                    <div class="color-container" style="margin-top: 10px;">
+                                    <div class="color-container">
                                     {
                                         for self.state.custom_theme.as_ref().unwrap().colors.iter().enumerate().map(|(i, color)| html! {
                                             <input type="color" value={color.to_hex()} onchange=change_custom_theme_color(i) />
                                         })
                                     }
-                                    <button class="button is-rounded is-small" onclick=add_custom_theme_color>{"+"}</button>
-                                    <button class="button is-rounded is-small" onclick=remove_custom_theme_color>{"-"}</button>
+                                    <button class="button is-rounded is-small color-control" onclick=add_custom_theme_color>{"+"}</button>
+                                    <button class="button is-rounded is-small color-control" onclick=remove_custom_theme_color>{"–"}</button>
                                     </div>
                                 }
                             }
@@ -597,7 +599,7 @@ impl App {
 
     fn view_color(&self, color: &Color) -> Html {
         html! {
-            <span style=format!("border-radius: 50%; margin-top: 10px; margin-right: 10px; display: inline-block; height: 25px; width: 25px; background-color: rgb({:?}, {:?}, {:?})", color.r, color.g, color.b)></span>
+            <span class="color" style=format!("background-color: rgb({:?}, {:?}, {:?})", color.r, color.g, color.b)></span>
         }
     }
 
