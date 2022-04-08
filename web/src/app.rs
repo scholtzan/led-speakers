@@ -273,7 +273,7 @@ impl Component for App {
             Message::ChangeVisualizationSuccess(new_viz) => {
                 // update the viz
                 self.state.current_visualization = new_viz;
-                false
+                true
             }
             Message::ChangeThemeSuccess(new_theme) => {
                 // update the theme

@@ -140,8 +140,8 @@ impl Viz for FadingBeatViz {
 
         if self.is_fading {
             // fade pixel colors
-            let current_color = colors[self.color_index];
-            let next_color = colors[next_color_index];
+            let current_color = colors[self.color_index % colors.len()];
+            let next_color = colors[next_color_index % colors.len()];
             let elapsed_perc: f32 = elapsed as f32 / self.config.fade_duration as f32;
             viz.red_mul =
                 (((next_color.r as f32 / current_color.r as f32) - 1.0) * elapsed_perc) + 1.0;
