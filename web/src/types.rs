@@ -3,6 +3,7 @@ use serde::{Deserialize, Serialize, Serializer};
 
 use std::collections::HashMap;
 
+/// Error types that occur after making a request to the server.
 pub enum Error {
     FetchError(String, response::Parts),
     Misc(String),

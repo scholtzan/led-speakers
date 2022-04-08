@@ -13,51 +13,120 @@ use std::collections::HashMap;
 
 use crate::api;
 
+/// Shared application state.
 pub struct State {
+    /// The identifier of the currently active visualization.
     current_visualization: String,
+
+    /// Available visualizations.
     visualizations: Vec<Visualization>,
 
+    /// The identifier of the currently active theme.
     current_theme: String,
+
+    /// Available themes.
     themes: Vec<Theme>,
 
+    /// The current speaker status.
     status: Status,
+
+    /// Advanced/transformer settings.
     advanced_settings: HashMap<String, String>,
 
+    /// The current custom theme config, if custom theme is currently selected.
     custom_theme: Option<Theme>,
 }
 
+/// Represents the application.
 pub struct App {
+    /// Shared application state.
     state: State,
+
+    /// Active requests to the server.
     tasks: VecDeque<FetchTask>,
+
+    /// Link to components for creating callbacks.    
     link: ComponentLink<Self>,
 }
 
+/// Messages sent through interaction with the frontend.
 pub enum Message {
+    /// Request available visualizations.
     GetVisualizations,
+
+    /// Request available themes.
     GetThemes,
+
+    /// Request the current speaker status.
     GetStatus,
+
+    /// Turn speaker on.
     TurnOn,
+
+    /// Turn speaker off.
     TurnOff,
+
+    /// The speaker has been turned on.
     TurnOnSuccess,
+
+    /// The speaker has been turned off.
     TurnOffSuccess,
+
+    /// Available visualizations successfully retrieved from the server.
     GetVisualizationsSuccess(Visualizations),
+
+    /// Themes successfully retrieved from the server.
     GetThemesSuccess(Themes),
+
+    /// Speaker status successfully retrieved from the server.
     GetStatusSuccess(Status),
+
+    /// Request to change the currently active visualization.
     ChangeVisualization(String),
+
+    /// Request to change the currently active theme.
     ChangeTheme(String),
+
+    /// Currently active visualization got changed.
     ChangeVisualizationSuccess(String),
+
+    /// Currently active theme got changed.
     ChangeThemeSuccess(String),
+
+    /// Request advanced/transformer settings.
     GetAdvancedSettings,
+
+    /// Change advanced/transformer settings.
     ChangeAdvancedSetting(String, String),
+
+    /// Advanced/transformer settings retrieved from server.
     GetAdvancedSettingsSuccess(HashMap<String, String>),
+
+    /// Advanced/transformer settings successfully changed.
     ChangeAdvancedSettingsSuccess,
+
+    /// Change visualization setting.
     ChangeVizSetting(String, String),
+
+    /// Visualization settings got changed successfully.
     ChangeVizSettingSuccess,
+
+    /// Add a new color to the custom theme.
     AddCustomThemeColor,
+
+    /// Remove a color from the current custom theme.
     RemoveCustomThemeColor,
+
+    /// Change a custom theme color.
     ChangeCustomThemeColor(usize, String),
+
+    /// Request to update custom theme.
     UpdateCustomTheme,
+
+    /// Custom theme update was successful.
     ChangeCustomThemeColorSuccess,
+
+    /// Any error.
     Error(Error),
 }
 
@@ -80,6 +149,7 @@ impl Component for App {
             link,
         };
 
+        // get information from server
         app.link.send_message_batch(vec![
             Message::GetVisualizations,
             Message::GetThemes,
@@ -92,6 +162,7 @@ impl Component for App {
     fn update(&mut self, message: Self::Message) -> ShouldRender {
         match message {
             Message::GetVisualizations => {
+                // request available visualizations
                 let handler =
                     self.link
                         .callback(move |response: api::FetchResponse<Visualizations>| {
@@ -109,11 +180,13 @@ impl Component for App {
                 true
             }
             Message::GetVisualizationsSuccess(viz_info) => {
+                // update the current and available viz
                 self.state.visualizations = viz_info.visualizations;
                 self.state.current_visualization = viz_info.current;
                 true
             }
             Message::GetThemes => {
+                // get available and the current theme
                 let handler = self
                     .link
                     .callback(move |response: api::FetchResponse<Themes>| {
@@ -131,6 +204,7 @@ impl Component for App {
                 true
             }
             Message::GetStatus => {
+                // get the speaker status
                 let handler = self
                     .link
                     .callback(move |response: api::FetchResponse<Status>| {
@@ -148,15 +222,18 @@ impl Component for App {
                 true
             }
             Message::GetThemesSuccess(theme_info) => {
+                // update available and the current theme
                 self.state.themes = theme_info.themes;
                 self.state.current_theme = theme_info.current;
                 true
             }
             Message::GetStatusSuccess(status) => {
+                // update the status
                 self.state.status = status;
                 true
             }
             Message::ChangeVisualization(new_viz) => {
+                // set a new active visualization
                 let new_viz_success = new_viz.clone();
                 let handler = self
                     .link
@@ -175,6 +252,7 @@ impl Component for App {
                 true
             }
             Message::ChangeTheme(new_theme) => {
+                // set a new active theme
                 let new_theme_success = new_theme.clone();
                 let handler = self
                     .link
@@ -193,15 +271,18 @@ impl Component for App {
                 true
             }
             Message::ChangeVisualizationSuccess(new_viz) => {
+                // update the viz
                 self.state.current_visualization = new_viz;
                 false
             }
             Message::ChangeThemeSuccess(new_theme) => {
+                // update the theme
                 self.state.current_theme = new_theme;
                 self.state.custom_theme = None;
                 true
             }
             Message::TurnOff => {
+                // request to turn off the speaker
                 let handler = self
                     .link
                     .callback(move |response: api::FetchResponse<bool>| {
@@ -219,10 +300,12 @@ impl Component for App {
                 true
             }
             Message::TurnOffSuccess => {
+                // turn off
                 self.state.status.is_stopped = true;
                 true
             }
             Message::TurnOn => {
+                // request to turn on the speaker
                 let handler = self
                     .link
                     .callback(move |response: api::FetchResponse<bool>| {
@@ -240,11 +323,12 @@ impl Component for App {
                 true
             }
             Message::TurnOnSuccess => {
+                // turn on
                 self.state.status.is_stopped = false;
                 true
             }
             Message::GetAdvancedSettings => {
-                log::info!("get: ");
+                // request advanced/transformer settings
                 let handler = self.link.callback(
                     move |response: api::FetchResponse<HashMap<String, String>>| {
                         let (meta, Json(data)) = response.into_parts();
@@ -262,12 +346,12 @@ impl Component for App {
                 true
             }
             Message::GetAdvancedSettingsSuccess(settings) => {
+                // store settings
                 self.state.advanced_settings = settings;
-
-                log::info!("Update: {:?}", self.state.advanced_settings);
                 true
             }
             Message::ChangeAdvancedSetting(key, value) => {
+                // request to change advanced/transformer settings
                 self.state.advanced_settings.insert(key, value);
                 let handler = self
                     .link
@@ -290,6 +374,7 @@ impl Component for App {
             }
             Message::ChangeAdvancedSettingsSuccess => true,
             Message::ChangeVizSetting(key, value) => {
+                // request and change current viz settings
                 let current_viz = self.state.current_visualization.clone();
                 let current_viz = self
                     .state
@@ -318,6 +403,7 @@ impl Component for App {
             }
             Message::ChangeVizSettingSuccess => true,
             Message::UpdateCustomTheme => {
+                // request and change current theme
                 if let Some(custom_theme) = self.state.custom_theme.as_mut() {
                     let new_theme = custom_theme.clone();
                     let handler = self
@@ -341,6 +427,7 @@ impl Component for App {
                 true
             }
             Message::ChangeCustomThemeColor(color_index, hex_color) => {
+                // change a specific color of the current custom theme
                 if let Some(custom_theme) = self.state.custom_theme.as_mut() {
                     custom_theme.colors[color_index] = Color::from_hex(&hex_color);
                     self.link.send_message(Message::UpdateCustomTheme);
@@ -349,9 +436,11 @@ impl Component for App {
             }
             Message::ChangeCustomThemeColorSuccess => true,
             Message::AddCustomThemeColor => {
+                // add a new color to the custom theme; black by default
                 if let Some(custom_theme) = self.state.custom_theme.as_mut() {
                     custom_theme.colors.push(Color::default())
                 } else {
+                    // no custom theme before, create new one
                     self.state.custom_theme = Some(Theme {
                         name: "custom".to_string(),
                         colors: vec![Color::default()],
@@ -361,6 +450,7 @@ impl Component for App {
                 true
             }
             Message::RemoveCustomThemeColor => {
+                // remove a specific color from the custom theme
                 if let Some(custom_theme) = self.state.custom_theme.as_mut() {
                     if custom_theme.colors.len() > 1 {
                         custom_theme.colors.pop();
@@ -370,6 +460,7 @@ impl Component for App {
                 true
             }
             Message::Error(err) => {
+                // log errors
                 if let Error::FetchError(msg, _) = err {
                     log::info!("Error {:?}", msg);
                 } else if let Error::Misc(msg) = err {
@@ -385,6 +476,7 @@ impl Component for App {
     }
 
     fn view(&self) -> Html {
+        // callbacks
         let on_viz_change = self.link.callback(|e: ChangeData| {
             if let ChangeData::Select(e) = e {
                 Message::ChangeVisualization(e.value())
@@ -447,6 +539,7 @@ impl Component for App {
         let add_custom_theme_color = self.link.callback(|_| Message::AddCustomThemeColor);
         let remove_custom_theme_color = self.link.callback(|_| Message::RemoveCustomThemeColor);
 
+        // render page
         html! {
             <>
             <nav class="navbar is-dark" role="navigation" aria-label="main navigation">
@@ -585,6 +678,7 @@ impl Component for App {
 }
 
 impl App {
+    /// Renders the options for the drop down selects (themes, visualizations).
     fn view_select_option(&self, select_option: &str, option_value: &str, selected: bool) -> Html {
         if selected {
             html! {
@@ -597,12 +691,14 @@ impl App {
         }
     }
 
+    /// Renders a color of the current theme as a circle.
     fn view_color(&self, color: &Color) -> Html {
         html! {
             <span class="color" style=format!("background-color: rgb({:?}, {:?}, {:?})", color.r, color.g, color.b)></span>
         }
     }
 
+    /// Queues multiple requests to the server.
     fn queue_task(&mut self, task: FetchTask) {
         if self.tasks.capacity() <= 0 {
             self.tasks.pop_front();
