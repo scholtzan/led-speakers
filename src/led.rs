@@ -15,12 +15,12 @@ impl Led {
     ///
     /// # Examples
     /// ```
-    /// let led = Led::new(150, "/dev/spidev0.0".to_string());
+    /// let led = Led::new(150, "/dev/spidev0.0");
     /// ```
-    pub fn new(total_pixels: i32, spi: String) -> Self {
+    pub fn new(total_pixels: i32, spi: &str) -> Self {
         Led {
             pixels: vec![Pixel::default(); total_pixels as usize],
-            controller: WS28xxSpiAdapter::new(&spi).unwrap(),
+            controller: WS28xxSpiAdapter::new(spi).unwrap(),
         }
     }
 
@@ -28,7 +28,7 @@ impl Led {
     ///
     /// # Example
     /// ```
-    /// let mut led = Led::new(150, "/dev/spidev0.0".to_string());
+    /// let mut led = Led::new(150, "/dev/spidev0.0");
     /// led.set_pixel(255, 0, 0, 1.0);
     /// ```
     pub fn set_pixel(&mut self, pixel: usize, red: u8, green: u8, blue: u8, brightness: f32) {
@@ -41,7 +41,7 @@ impl Led {
     ///
     /// # Example
     /// ```
-    /// let mut led = Led::new(150, "/dev/spidev0.0".to_string());
+    /// let mut led = Led::new(150, "/dev/spidev0.0");
     /// led.set_all_pixels(255, 0, 0, 1.0);
     /// ```
     pub fn set_all_pixels(&mut self, red: u8, green: u8, blue: u8, brightness: f32) {
@@ -54,7 +54,7 @@ impl Led {
     ///
     /// # Example
     /// ```
-    /// let mut led = Led::new(150, "/dev/spidev0.0".to_string());
+    /// let mut led = Led::new(150, "/dev/spidev0.0");
     /// led.clear();
     /// ```
     pub fn clear(&mut self) {
@@ -65,7 +65,7 @@ impl Led {
     ///
     /// # Example
     /// ```
-    /// let mut led = Led::new(150, "/dev/spidev0.0".to_string());
+    /// let mut led = Led::new(150, "/dev/spidev0.0");
     /// led.show();
     /// ```
     pub fn show(&mut self) {

@@ -7,13 +7,20 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
 #[derive(Serialize, Deserialize, Debug, PartialEq, Clone)]
+/// Visualization Config.
 pub struct SolidBeatVizConfig {
+    /// Screen friendly name of visualization.
     pub pretty_name: String,
+
+    /// Whether colors should be faded to a different color randomly.
     pub fade_colors: bool,
+
+    /// Speed of fading the pixels to a different color.
     pub fade_duration: i64,
 }
 
 impl SolidBeatVizConfig {
+    /// Convert settings in map of strings to visualization config.
     pub fn to_map(&self) -> HashMap<String, String> {
         let mut settings = HashMap::new();
         settings.insert("fade_colors".to_string(), self.fade_colors.to_string());
@@ -21,6 +28,7 @@ impl SolidBeatVizConfig {
         settings
     }
 
+    /// Create visualization config from map of strings.
     pub fn from_map(name: String, settings: HashMap<String, String>) -> Self {
         Self {
             pretty_name: name,
@@ -39,10 +47,20 @@ impl SolidBeatVizConfig {
 }
 
 #[derive(Serialize, Deserialize, Clone)]
+/// Visualizations that shows all pixels in the same color and changes
+/// their brightness based on the current beat.
+/// Optionally, fades pixels to a different color.
 pub struct SolidBeatViz {
+    /// Visualization config.
     pub config: SolidBeatVizConfig,
+
+    /// Total number of pixels.
     total_pixels: usize,
+
+    /// Time since the last fade happened.
     elapsed_time: DateTime<Utc>,
+
+    /// Current color pixels are displayed in.
     color_index: usize,
 }
 
@@ -57,6 +75,7 @@ impl Viz for SolidBeatViz {
     }
 
     fn update(&mut self, input: &Vec<f32>, colors: &Vec<Color>) -> Vec<PixelViz> {
+        // determine the total frequency magnitude and compute brightness based on it
         let total_bands = input.len();
         let max_magnitude = 100.0 * total_bands as f32;
         let magnitude: f32 = input.iter().sum();
@@ -65,6 +84,7 @@ impl Viz for SolidBeatViz {
         viz.color_index = self.color_index;
 
         if self.config.fade_colors {
+            // if colors are configured to be fading then wait until fade threshold is reached
             let next_color_index = (self.color_index + 1) % colors.len();
             let now = Utc::now();
             let elapsed = (now - self.elapsed_time).num_seconds();
@@ -73,6 +93,7 @@ impl Viz for SolidBeatViz {
                 self.color_index = next_color_index;
                 self.elapsed_time = now;
             } else {
+                // fade
                 let current_color = colors[self.color_index];
                 let next_color = colors[next_color_index];
                 let elapsed_perc: f32 = elapsed as f32 / self.config.fade_duration as f32;

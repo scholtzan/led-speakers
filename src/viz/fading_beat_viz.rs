@@ -8,14 +8,23 @@ use std::collections::HashMap;
 use serde::{Deserialize, Serialize};
 
 #[derive(Serialize, Deserialize, Debug, PartialEq, Clone)]
+/// Visualization Config.
 pub struct FadingBeatVizConfig {
+    /// Screen friendly name of visualization.
     pub pretty_name: String,
+
+    /// Speed for fading between different colors
     pub fade_duration: i64,
+
+    /// Maximum time a color is shown without fading to the next one.
     pub fade_threshold: i64,
+
+    /// Size of buffer keeping track of past frequency magnitudes.
     pub frequency_magnitude_buffer_size: i64,
 }
 
 impl FadingBeatVizConfig {
+    /// Convert settings in map of strings to visualization config.
     pub fn to_map(&self) -> HashMap<String, String> {
         let mut settings = HashMap::new();
         settings.insert("fade_duration".to_string(), self.fade_duration.to_string());
@@ -30,6 +39,7 @@ impl FadingBeatVizConfig {
         settings
     }
 
+    /// Create visualization config from map of strings.
     pub fn from_map(name: String, settings: HashMap<String, String>) -> Self {
         Self {
             pretty_name: name,
@@ -53,12 +63,25 @@ impl FadingBeatVizConfig {
 }
 
 #[derive(Serialize, Deserialize, Clone)]
+/// Visualization showing all pixels in the same color that fades
+/// to the next theme color when the dominant frequency changes.
 pub struct FadingBeatViz {
+    /// Visualization config
     pub config: FadingBeatVizConfig,
+
+    /// Total number of pixels.
     total_pixels: usize,
+
+    /// Elapsed time from when pixels faded to a different color.
     elapsed_time: DateTime<Utc>,
+
+    /// Current color displayed.
     color_index: usize,
+
+    /// Past dominant frequencies.
     dominant_frequencies: Vec<usize>,
+
+    /// Pixels are currently in the process of fading to a different color.
     is_fading: bool,
 }
 
@@ -73,6 +96,7 @@ impl Viz for FadingBeatViz {
     }
 
     fn update(&mut self, input: &Vec<f32>, colors: &Vec<Color>) -> Vec<PixelViz> {
+        // determine color and brightness of pixels based on frequency magnitudes
         let total_bands = input.len();
         let max_magnitude = 100.0 * total_bands as f32;
         let magnitude: f32 = input.iter().sum();
@@ -84,6 +108,7 @@ impl Viz for FadingBeatViz {
         let now = Utc::now();
         let elapsed = (now - self.elapsed_time).num_seconds();
 
+        // determine current dominant frequency
         let mut dominant_frequency = 0;
         let mut max_magnitude = 0.0;
         for (i, mag) in input.into_iter().enumerate() {
@@ -93,8 +118,8 @@ impl Viz for FadingBeatViz {
             }
         }
 
+        // Update past dominant frequency buffer and add current
         let prev_dominant_frequency = Self::mode(&self.dominant_frequencies);
-
         let mut prev_freq = self.dominant_frequencies[0];
         self.dominant_frequencies[0] = dominant_frequency;
         for n in 0..(self.dominant_frequencies.len() - 1) {
@@ -105,6 +130,7 @@ impl Viz for FadingBeatViz {
 
         let current_dominant_frequency = Self::mode(&self.dominant_frequencies);
 
+        // check if pixels are currently fading to a different color
         if elapsed > self.config.fade_threshold && !self.is_fading {
             if current_dominant_frequency != prev_dominant_frequency {
                 self.is_fading = true;
@@ -113,6 +139,7 @@ impl Viz for FadingBeatViz {
         }
 
         if self.is_fading {
+            // fade pixel colors
             let current_color = colors[self.color_index];
             let next_color = colors[next_color_index];
             let elapsed_perc: f32 = elapsed as f32 / self.config.fade_duration as f32;
@@ -124,6 +151,7 @@ impl Viz for FadingBeatViz {
                 (((next_color.b as f32 / current_color.b as f32) - 1.0) * elapsed_perc) + 1.0;
 
             if elapsed_perc >= 1.0 {
+                // stop fading if target color is reached
                 self.color_index = next_color_index;
                 self.elapsed_time = now;
                 self.is_fading = false;
@@ -165,7 +193,8 @@ impl FadingBeatViz {
         }
     }
 
-    // https://gist.github.com/ayoisaiah/185fec1ca98ce44fca1308753182ff2b
+    /// Determines the mode from a list of values.
+    /// https://gist.github.com/ayoisaiah/185fec1ca98ce44fca1308753182ff2b
     fn mode(numbers: &Vec<usize>) -> usize {
         let mut map = HashMap::new();
         for integer in numbers {

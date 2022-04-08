@@ -11,28 +11,37 @@ use crate::theme::Theme;
 
 #[derive(Serialize, Deserialize, Clone)]
 struct VisualizationsResponse {
+    /// Identifier of currently active visualization.
     current: String,
+
+    /// Available visualizations.
     visualizations: Vec<Visualization>,
 }
 
 #[derive(Serialize, Deserialize, Clone)]
 struct ThemesResponse {
+    /// Identifier of currently active theme.
     current: String,
+
+    /// Available themes.
     themes: Vec<Theme>,
 }
 
 #[derive(Serialize, Deserialize, Clone)]
 struct ChangeVisualization {
+    /// Identifier of visualization to be activated.
     pub visualization: String,
 }
 
 #[derive(Serialize, Deserialize, Clone)]
 struct ChangeTheme {
+    /// Identifier of theme to be activated.
     pub theme: String,
 }
 
 #[derive(Serialize, Deserialize, Clone)]
 struct StatusResponse {
+    /// Whether visualization is running or not.
     pub is_stopped: bool,
 }
 
@@ -69,6 +78,7 @@ async fn get_viz(data: web::Data<AppState>) -> impl Responder {
 
 #[get("/api/theme")]
 async fn get_themes(data: web::Data<AppState>) -> impl Responder {
+    // Return available themes.
     let themes = data.themes.clone();
     let current_theme = data.viz_runner.lock().unwrap();
     let response = ThemesResponse {
@@ -83,6 +93,7 @@ async fn update_visualization(
     new_visualization: web::Json<ChangeVisualization>,
     data: web::Data<AppState>,
 ) -> impl Responder {
+    // Activate a new viz.
     if let Some(viz) = data
         .settings
         .lock()
@@ -106,6 +117,7 @@ async fn update_theme(
     new_theme: web::Json<ChangeTheme>,
     data: web::Data<AppState>,
 ) -> impl Responder {
+    // Activate a new theme.
     let themes = data.themes.clone();
     let new_theme = themes.into_iter().find(|t| t.name == new_theme.theme);
     if let Some(theme) = new_theme {
@@ -118,6 +130,7 @@ async fn update_theme(
 
 #[post("/api/theme/custom")]
 async fn set_custom_theme(theme: web::Json<Theme>, data: web::Data<AppState>) -> impl Responder {
+    // Activate a custom theme.
     data.viz_runner
         .lock()
         .unwrap()
@@ -127,12 +140,14 @@ async fn set_custom_theme(theme: web::Json<Theme>, data: web::Data<AppState>) ->
 
 #[post("/api/on")]
 async fn turn_on(data: web::Data<AppState>) -> impl Responder {
+    // Turn viz on.
     data.viz_runner.lock().unwrap().stop(false);
     HttpResponse::Ok().json(true)
 }
 
 #[post("/api/off")]
 async fn turn_off(data: web::Data<AppState>) -> impl Responder {
+    // Turn viz off
     data.viz_runner.lock().unwrap().stop(true);
     HttpResponse::Ok().json(true)
 }
@@ -159,6 +174,7 @@ async fn update_transformer_settings(
     new_settings: web::Json<HashMap<String, String>>,
     data: web::Data<AppState>,
 ) -> impl Responder {
+    // Set new transformer settings.
     let transformer_settings = TransformerSettings::from_map(new_settings.into_inner());
     data.settings
         .lock()
@@ -176,6 +192,7 @@ async fn update_viz_settings(
     new_settings: web::Json<HashMap<String, String>>,
     data: web::Data<AppState>,
 ) -> impl Responder {
+    // Set new settings for active viz.
     data.viz_runner
         .lock()
         .unwrap()

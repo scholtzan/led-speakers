@@ -9,15 +9,26 @@ use crate::viz::PixelViz;
 use crate::viz::Viz;
 
 #[derive(Serialize, Deserialize, Debug, PartialEq, Clone)]
+/// Visualization Config.
 pub struct BlendVizConfig {
+    /// Screen friendly name of visualization.
     pub pretty_name: String,
+
+    /// Determines how many neighboring pixels should initially be grouped together when computing offsets.
     pub spread: u8,
+
+    /// Factor determining how fast pixel blend from one color to another.
     pub blend_speed: u8,
+
+    /// Determines the range when computing initial color offsets.
     pub offset_weight: i64,
+
+    /// Factor determining how much the current pixel color changes to the target color in each iteration.
     pub blend_factor: u8,
 }
 
 impl BlendVizConfig {
+    /// Convert settings in map of strings to visualization config.
     pub fn to_map(&self) -> HashMap<String, String> {
         let mut settings = HashMap::new();
         settings.insert("spread".to_string(), self.spread.to_string());
@@ -27,6 +38,7 @@ impl BlendVizConfig {
         settings
     }
 
+    /// Create visualization config from map of strings.
     pub fn from_map(name: String, settings: HashMap<String, String>) -> Self {
         Self {
             pretty_name: name,
@@ -55,11 +67,21 @@ impl BlendVizConfig {
 }
 
 #[derive(Deserialize, Serialize, Clone)]
+/// Visualization creating blending pattern.
 pub struct BlendViz {
+    /// Visualization config.
     pub config: BlendVizConfig,
+
+    /// Total number of pixels.
     total_pixels: usize,
+
+    /// Elapsed time for each pixel until it blends to different color.
     elapsed_time: Vec<DateTime<Utc>>,
+
+    /// Color of each pixel.
     pixels: Vec<PixelViz>,
+
+    /// Colors pixels blend to.
     target_colors: Vec<Color>,
 }
 
@@ -74,18 +96,21 @@ impl Viz for BlendViz {
     }
 
     fn update(&mut self, input: &Vec<f32>, colors: &Vec<Color>) -> Vec<PixelViz> {
-        let _total_bands = input.len();
         let total_magnitude: f32 = input.iter().sum();
         let mut rng = rand::thread_rng();
 
+        // magnitude of each frequency band
         let freq_amounts: Vec<i64> = input
             .iter()
             .map(|m| (100.0 * m / (total_magnitude + 0.001)) as i64)
             .collect::<Vec<i64>>();
         let now = Utc::now();
 
+        // update pixel colors
         for pixel_index in 0..self.total_pixels {
             let elapsed = (now - self.elapsed_time[pixel_index]).num_seconds();
+
+            // determine current pixel color based on multipliers
             let current_color = Color {
                 r: ((colors[self.pixels[pixel_index].color_index % colors.len()].r as f32)
                     * self.pixels[pixel_index].red_mul) as u8,
@@ -98,9 +123,12 @@ impl Viz for BlendViz {
             let mut target_color = self.target_colors[pixel_index];
 
             if elapsed > (self.config.blend_speed as i64) {
+                // if time is elapsed, blend to target color
                 let mut r = rng.gen_range(0..100) as i64;
                 let mut color_index = 0;
 
+                // randomly select next target color
+                // frequency bands with larger magnitude are more likely to get selected
                 while r > 0 && color_index < freq_amounts.len() - 1 {
                     r -= freq_amounts[color_index as usize];
 
@@ -109,6 +137,7 @@ impl Viz for BlendViz {
                     }
                 }
 
+                // compute target color
                 target_color = colors[color_index % colors.len()];
                 target_color.r =
                     (target_color.r as f32 * (input[color_index] as f32 / 100.0)) as u8;
@@ -132,15 +161,17 @@ impl Viz for BlendViz {
                     target_color.b
                 };
 
+                // update state
                 self.target_colors[pixel_index] = target_color;
-
                 self.elapsed_time[pixel_index] = now;
                 self.pixels[pixel_index].color_index = color_index;
             }
 
+            // compute blending
             let actual_color = colors[self.pixels[pixel_index].color_index % colors.len()];
-
             let blend_color = Self::blend(&current_color, &target_color, self.config.blend_factor);
+
+            // update pixels
             self.pixels[pixel_index].red_mul = (blend_color.r as f32) / (actual_color.r as f32);
             self.pixels[pixel_index].green_mul = (blend_color.g as f32) / (actual_color.g as f32);
             self.pixels[pixel_index].blue_mul = (blend_color.b as f32) / (actual_color.b as f32);
@@ -185,6 +216,7 @@ unsafe impl Send for BlendViz {}
 unsafe impl Sync for BlendViz {}
 
 impl BlendViz {
+    /// Create a new visualization instance.
     pub fn new(config: BlendVizConfig) -> Self {
         BlendViz {
             config,
@@ -195,10 +227,12 @@ impl BlendViz {
         }
     }
 
+    /// Compute the initial state of the pixels.
     fn offsets(&mut self) -> Vec<i64> {
         let mut rng = rand::thread_rng();
         let total_pixels = self.total_pixels;
 
+        // random color offsets for each pixel
         let mut offsets: Vec<i64> = (0..total_pixels)
             .map(|_| rng.sample(&Uniform::new(0, self.config.offset_weight)))
             .collect();
@@ -207,7 +241,9 @@ impl BlendViz {
         let mut pixel_index = 0;
         let mut increasing = true;
 
+        // reduce randomization of pixel color offsets
         while pixel_index < total_pixels {
+            // ensure that offsets of neighboring pixels are relatively similar
             let mut n = rng.gen_range(0..spread) as usize;
             if pixel_index + n > total_pixels {
                 n = total_pixels - pixel_index;
@@ -232,6 +268,7 @@ impl BlendViz {
         offsets
     }
 
+    /// Blends two colors together and return resulting color.
     fn blend(color_1: &Color, color_2: &Color, blend_factor: u8) -> Color {
         let mut target_color = Color {
             r: color_1.r,

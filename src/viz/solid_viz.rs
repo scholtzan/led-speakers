@@ -5,23 +5,31 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
 #[derive(Serialize, Deserialize, Debug, PartialEq, Clone)]
+/// Visualization Config.
 pub struct SolidVizConfig {
+    /// Screen friendly name of visualization.
     pub pretty_name: String,
 }
 
 impl SolidVizConfig {
+    /// Convert settings in map of strings to visualization config.
     pub fn to_map(&self) -> HashMap<String, String> {
         HashMap::new()
     }
 
+    /// Create visualization config from map of strings.
     pub fn from_map(name: String, _settings: HashMap<String, String>) -> Self {
         Self { pretty_name: name }
     }
 }
 
 #[derive(Serialize, Deserialize, Clone)]
+/// Visualization that shows all pixels in a static color without changing them.
 pub struct SolidViz {
+    /// Visualization config.
     pub config: SolidVizConfig,
+
+    /// Total number of pixels.
     total_pixels: usize,
 }
 

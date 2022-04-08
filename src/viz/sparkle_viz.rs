@@ -11,13 +11,21 @@ use crate::viz::Viz;
 
 #[derive(Serialize, Deserialize, Debug, PartialEq, Clone)]
 pub struct SparkleVizConfig {
+    /// Screen friendly name of visualization.
     pub pretty_name: String,
-    pub speed: f32,   // pixels per second
-    pub falloff: f32, // factor of how much brightness is reduced
+
+    /// Determines how frequently pixels should be ignited.
+    pub speed: f32,
+
+    /// Factor of how much brightness is reduced.
+    pub falloff: f32,
+
+    /// Maximum number of pixels ignited at the same time representing the same frequency.
     pub max_ignite: f32,
 }
 
 impl SparkleVizConfig {
+    /// Convert settings in map of strings to visualization config.
     pub fn to_map(&self) -> HashMap<String, String> {
         let mut settings = HashMap::new();
         settings.insert("speed".to_string(), self.speed.to_string());
@@ -26,6 +34,7 @@ impl SparkleVizConfig {
         settings
     }
 
+    /// Create visualization config from map of strings.
     pub fn from_map(name: String, settings: HashMap<String, String>) -> Self {
         Self {
             pretty_name: name,
@@ -49,11 +58,22 @@ impl SparkleVizConfig {
 }
 
 #[derive(Deserialize, Serialize, Clone)]
+/// Visualization randomly igniting pixels for a short amount of time.
+/// The pixel color is determined by the frequency bands and their magnitudes.
 pub struct SparkleViz {
+    /// Visualization config.
     pub config: SparkleVizConfig,
+
+    /// Total number of pixels.
     total_pixels: usize,
+
+    /// Falloff factors applied to each pixel.
     falloffs: Vec<f32>,
+
+    /// Elapsed time since last time pixels got ignited.
     elapsed_time: DateTime<Utc>,
+
+    /// Pixel colors.
     pixels: Vec<Option<PixelViz>>,
 }
 
@@ -77,18 +97,24 @@ impl Viz for SparkleViz {
         if elapsed > 1000.0 / self.config.speed {
             self.elapsed_time = now;
             for band in 0..total_bands {
+                // total number of pixels to ignite
                 let total_ignite = ((input[band] / 100.0) * self.config.max_ignite) as usize;
+
+                // pixels that are currently off
                 let off_pixels = self
                     .pixels
                     .iter()
                     .enumerate()
                     .flat_map(|(i, p)| if let Some(_pixel) = p { None } else { Some(i) })
                     .collect::<Vec<usize>>();
+
+                // randomly determine which off pixels should be ignited
                 let pixels_to_spark: Vec<usize> = off_pixels
                     .choose_multiple(&mut rand::thread_rng(), total_ignite)
                     .cloned()
                     .collect();
 
+                // set color
                 for pixel in pixels_to_spark {
                     self.pixels[pixel] = Some(PixelViz {
                         color_index: band,

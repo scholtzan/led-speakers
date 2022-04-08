@@ -1,7 +1,6 @@
 use actix_cors::Cors;
 use actix_web::{http, web, App, Error, HttpServer};
 use anyhow::Result;
-
 use std::sync::atomic::AtomicBool;
 use std::sync::{Arc, Mutex};
 
@@ -16,11 +15,9 @@ mod transform;
 mod viz;
 
 use crate::app::{AppState, Visualization};
-
 use crate::routes::init;
 use crate::settings::Settings;
 use crate::transform::AudioTransformer;
-
 use crate::viz::VizRunner;
 
 extern crate dotenv_codegen;
@@ -83,9 +80,9 @@ async fn main() -> Result<()> {
 
     viz_runner.start();
 
+    // settings to set up web server
     let host = shared_settings.lock().unwrap().server_host.clone();
     let port = shared_settings.lock().unwrap().server_port.clone();
-
     let shared_viz_runner = Arc::new(Mutex::new(viz_runner)).clone();
     let themes = shared_settings.lock().unwrap().themes.clone();
 

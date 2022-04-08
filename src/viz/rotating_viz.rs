@@ -9,13 +9,20 @@ use rand::Rng;
 use std::collections::HashMap;
 
 #[derive(Serialize, Deserialize, Debug, PartialEq, Clone)]
+/// Visualization Config.
 pub struct RotatingVizConfig {
+    /// Screen friendly name of visualization.
     pub pretty_name: String,
-    pub speed: f32,   // pixels per second
-    pub falloff: f32, // factor of how much brightness is reduced
+
+    /// Number of pixels pixels are moved per second.
+    pub speed: f32,
+
+    /// Factor of how much brightness is reduced.
+    pub falloff: f32,
 }
 
 impl RotatingVizConfig {
+    /// Convert settings in map of strings to visualization config.
     pub fn to_map(&self) -> HashMap<String, String> {
         let mut settings = HashMap::new();
         settings.insert("speed".to_string(), self.speed.to_string());
@@ -23,6 +30,7 @@ impl RotatingVizConfig {
         settings
     }
 
+    /// Create visualization config from map of strings.
     pub fn from_map(name: String, settings: HashMap<String, String>) -> Self {
         Self {
             pretty_name: name,
@@ -41,11 +49,22 @@ impl RotatingVizConfig {
 }
 
 #[derive(Serialize, Deserialize, Clone)]
+/// Visualization that offsets pixels in each iteration to create a rotating pattern.
+/// Pixel colors are determined by the dominant frequencies and randomly assigned.
 pub struct RotatingViz {
+    /// Visualization config.
     pub config: RotatingVizConfig,
+
+    /// Total number of pixels.
     total_pixels: usize,
+
+    /// Elapsed time for each pixel until it blends to different color.
     elapsed_time: DateTime<Utc>,
+
+    /// Color of each pixel.
     pixels: Vec<Option<PixelViz>>,
+
+    /// Falloff factors applied to each pixel.
     falloffs: Vec<f32>,
 }
 

@@ -24,7 +24,7 @@ pub struct Output {
 impl Output {
     /// Converts output settings to an `Led` instance.
     pub fn to_led(&self) -> Led {
-        Led::new(self.total_leds, self.spi.clone())
+        Led::new(self.total_leds, &self.spi)
     }
 }
 
@@ -80,6 +80,7 @@ impl TransformerSettings {
         settings
     }
 
+    /// Create transformer settings from map of string values.
     pub fn from_map(settings: HashMap<String, String>) -> Self {
         TransformerSettings {
             sink: settings
