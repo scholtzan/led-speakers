@@ -547,29 +547,26 @@ impl Component for App {
                     <div class="navbar-brand">
                         <div class="navbar-item logo">
                         {"LED Speakers"}
-                        </div>
-                    </div>
-
-                    <div class="navbar-menu">
-                        <div class="navbar-end">
-                            <div class="navbar-item">
-                                <div class="buttons">
-                                {
-                                    if status.is_stopped {
-                                        html! {
-                                            <a class="button is-black" onclick=turn_on>
-                                            <strong>{"Turn on"}</strong>
-                                            </a>
-                                        }
-                                    } else {
-                                        html! {
-                                            <a class="button is-primary" onclick=turn_off>
-                                            <strong>{"Turn off"}</strong>
-                                            </a>
+                            <div class="field is-grouped on-off-button">
+                                <p class="control">
+                                    <div class="buttons">
+                                    {
+                                        if status.is_stopped {
+                                            html! {
+                                                <a class="button is-black" onclick=turn_on>
+                                                <strong>{"Turn on"}</strong>
+                                                </a>
+                                            }
+                                        } else {
+                                            html! {
+                                                <a class="button is-primary" onclick=turn_off>
+                                                <strong>{"Turn off"}</strong>
+                                                </a>
+                                            }
                                         }
                                     }
-                                }
-                                </div>
+                                    </div>
+                                </p>
                             </div>
                         </div>
                     </div>
