@@ -1,6 +1,9 @@
-# 3D Printed LED Speakers
+# 3D Printed Reactive LED Speakers
 
-todo
+> Work in progress
+
+<img src="https://github.com/scholtzan/led-speaker/raw/main/img/speakers-darkness.jpg" width="1000">
+
 
 ## Raspberry Pi Setup
 
