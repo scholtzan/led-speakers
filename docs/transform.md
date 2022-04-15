@@ -1,6 +1,8 @@
 # Audio Processing and Transformation
 
-The `AudioTransformer` initializes a new audio stream
+The `AudioTransformer` initializes a new audio stream and starts the FFT based on the audio samples written to the audio buffer.
+
+[todo: add more docs]
 
 ## FFT
 

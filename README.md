@@ -347,3 +347,7 @@ Settings can be changed in the `config.json` file:
     "server_port": "8000"
 }
 ```
+
+### More docs
+
+More detailed docs about certain aspects of the software can be found in [`docs/`](https://github.com/scholtzan/led-speakers/tree/main/docs)
