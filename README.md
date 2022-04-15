@@ -1,8 +1,8 @@
 # 3D Printed Reactive LED Speakers
 
-> Work in progress
-
 <img src="https://github.com/scholtzan/led-speakers/raw/main/img/speakers-darkness.jpg" width="1000">
+
+<img src="https://github.com/scholtzan/led-speakers/raw/main/img/speakers.jpg" width="1000">
 
 This repository contains all the model files, assembly instructions and code files for building reactive LED speakers.
 
