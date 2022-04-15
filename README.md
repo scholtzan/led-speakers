@@ -8,7 +8,7 @@ This repository contains all the model files, assembly instructions and code fil
 
 ## Overview
 
-<img src="https://github.com/scholtzan/led-speaker/raw/main/img/overview.png" width="500">
+<img src="https://github.com/scholtzan/led-speakers/raw/main/img/overview.png" width="500">
 
 The entire setup consists of two speakers which are composed of a 3D printed enclosure that contains the speaker cone and a 1.5m long LED strip.
 The enclosure is mainly printed from transparent PLA+ with some black accents. The speakers are connected to an amplifier which gets its audio
@@ -49,18 +49,18 @@ The outer enclosure walls are printed from clear PLA+. For a better contrast of 
 To change filament mid-print, the [Multicolor prints with a single extruder in Cura](https://github.com/scholtzan/cura-multicolor-single-extruder) plugin
 can be used.
 
-<img src="https://github.com/scholtzan/led-speaker/raw/main/img/walls.jpg" width="500">
+<img src="https://github.com/scholtzan/led-speakers/raw/main/img/walls.jpg" width="500">
 _Printed walls_
 
 The LED strip will be cut into smaller strips that will get attached to an inner cage to stay in place.
 All parts of the cage are printed in PLA and glued together using hot glue.
 
-<img src="https://github.com/scholtzan/led-speaker/raw/main/img/cage-parts.jpg" width="500">
+<img src="https://github.com/scholtzan/led-speakers/raw/main/img/cage-parts.jpg" width="500">
 _Parts for assembling the inner cage_
 
 The assembled cage with the LEDs glued on is then attached to one of the enclosure walls.
 
-<img src="https://github.com/scholtzan/led-speaker/raw/main/img/cage.jpg" width="500">
+<img src="https://github.com/scholtzan/led-speakers/raw/main/img/cage.jpg" width="500">
 _Assembled cage with LEDs_
 
 ### Print Settings
@@ -84,7 +84,7 @@ of the Raspberry Pi. A 5V power supply is used to power the Raspberry Pi as well
 
 All of these components (except for the amplifier) are placed in a separate printed enclosure.
 
-### Audio
+### Audio Setup
 
 _Based on [Another How to turn your Pi in a Bluetooth Speaker Tutorial](https://forums.raspberrypi.com/viewtopic.php?t=235519)_
 
@@ -198,7 +198,7 @@ core_freq_min=500
 
 ## Software
 
-### Building
+### Server
 
 Install [cross](https://github.com/rust-embedded/cross)
 
@@ -208,4 +208,142 @@ Build docker container with libpulse installed:
 
 Build project
 
-`cross build --target=armv7-unknown-linux-gnueabihf`
+`cross build --target=armv7-unknown-linux-gnueabihf --release`
+
+### Web App
+
+Go to the `web/` folder: `cd web/`
+
+Update the `.env` file and set the correct host and ports.
+
+To build the web app run: `make`
+
+### Installation
+
+Once the server and web app have been built successfully, copy the `led_speakers` binary, the `web/static` directory and the `config.json` file on to the Raspberry Pi.
+
+The software can be manually started by running `./led_speakers` and the web app will be ready to be accessed under the configured host and port.
+
+Settings can be changed in the `config.json` file.
+
+To start the software automatically when booting, create a custom systemd service:
+
+`sudo nano ~/.config/systemd/user/led-speakers.service`
+
+```
+[Unit]
+Description=LED Speakers Service
+
+[Service]
+Type=idle
+ExecStart=/home/pi/led_speakers
+Restart=on-failure
+RestartSec=60
+
+[Install]
+WantedBy=default.target
+```
+
+To enable the service:
+
+```
+systemctl --user enable led-speakers.service
+systemctl --user daemon-reload
+```
+
+### Settings
+
+Settings can be changed in the `config.json` file:
+
+```json
+{
+    // available visualizations and default configurations
+    "visualizations": {
+        "rotating_viz": {
+            "pretty_name": "Rotating Viz",
+            "speed": 5.0,
+            "falloff": 0.1
+        },
+        "sparkle_viz": {
+            "pretty_name": "Sparkle Viz",
+            "falloff": 0.1,
+            "speed": 5.0,
+            "max_ignite": 2.0
+        },
+        "solid_viz": {
+            "pretty_name": "Solid Viz"
+        },
+        "center_viz": {
+            "pretty_name": "Center Viz"
+        },
+        "solid_beat_viz": {
+            "pretty_name": "Solid Beat Viz",
+            "fade_colors": true,
+            "fade_duration": 20
+        },
+        "fading_beat_viz": {
+            "pretty_name": "Fading Beat Viz",
+            "fade_duration": 1,
+            "fade_threshold": 10,
+            "frequency_magnitude_buffer_size": 300
+        },
+        "blend_viz": {
+            "pretty_name": "Blend Viz",
+            "spread": 6,
+            "blend_speed": 3,
+            "offset_weight": 1,
+            "blend_factor": 10
+        }
+    },
+    // configures the pins that control the LED strip
+    "output": {
+        "left": {
+            "spi": "/dev/spidev0.0",
+            "total_leds": 150
+        },
+        "right": {
+            "spi": "/dev/spidev1.0",
+            "total_leds": 150
+        }
+    },
+    // default themes
+    "themes": [
+        {
+            "name": "Rainbow",
+            "colors": [
+                [255, 0, 0],
+                [255, 100, 0],
+                [255, 200, 0],
+                [100, 255, 0],
+                [0, 255, 0],
+                [0, 255, 100],
+                [0, 255, 255],
+                [0, 100, 255],
+                [0, 0, 255],
+                [100, 0, 255],
+                [255, 0, 255]
+            ]
+        },
+        {
+            "name": "Test Theme",
+            "colors": [
+                [255, 0, 0]
+            ]    
+        }
+    ],
+    // parameters for the audio transformation
+    "transformer": {
+        "sink": "alsa_output.usb-Generic_USB2.0_Device_20170726905959-00.analog-stereo",
+        "fft_len": 3000,
+        "total_bands": 6,
+        "lower_cutoff": 50.0,
+        "upper_cutoff": 10000.0,
+        "monstercat": 50.0,
+        "decay": 10.0,
+        "buffer_size": 65535
+    },
+    // host and port web app is hosted under
+    "server_host": "127.0.0.1",
+    "server_port": "8000"
+}
+```
